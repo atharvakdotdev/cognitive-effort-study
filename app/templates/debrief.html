@@ -4,12 +4,12 @@
 <section class="content-panel narrow-panel">
   {% if complete %}
     <p class="eyebrow">Session complete</p><h1>Thank you for taking part.</h1>
-    <p class="prose">Your anonymous responses have been recorded. The study examines how cognitive task demand and duration relate to choices about reward. It compares trial-level choices across N-back levels and task durations; it does not directly measure brain activity or identify a best mathematical model from this page.</p>
+    <p class="prose">Your responses have been recorded under a random participant code. The study examines how task reward, cognitive task demand, and duration jointly relate to choices. It does not directly measure brain activity or identify a best mathematical model from this page.</p>
     {% if outcome %}<div class="notice">Recorded outcome: {{ '%.2f'|format(outcome.credits_awarded) }} credits{% if outcome.task_selected %}, with task completed{% endif %}.</div>{% endif %}
     <p class="quiet-note">Your participant code is {{ session.get('participant_id', '') }}. Contact the researcher using the details supplied with your study invitation.</p>
   {% else %}
     <p class="eyebrow">Debrief</p><h1>About this study</h1>
-    <div class="prose"><p>The study asks how cognitive effort and task duration, separately and together, influence the subjective value of performing a task. N-back level is an operational measure of task demand, not a perfect measure of cognitive effort; your effort ratings provide an additional subjective measure.</p><p>The reward for a task was fixed at 10 credits. The data can compare candidate models at that reward level, but cannot estimate a complete reward-dependent value function from this experiment alone. The website records behaviour only and does not directly measure dopamine or brain activity.</p><p>You may leave a comment about your experience below. This is optional.</p></div>
+    <div class="prose"><p>The study asks how reward, cognitive effort, and task duration, separately and together, influence the subjective value of performing a task. N-back level is an operational measure of task demand, not a perfect measure of cognitive effort; your effort ratings provide an additional subjective measure.</p><p>Task rewards varied between conditions and stayed fixed within each condition. The study compares candidate models but does not establish a correct equation. The website records behaviour only and does not directly measure dopamine or brain activity.</p><p>You may leave a comment about your experience below. This is optional.</p></div>
     <form method="post" class="form-stack"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label for="feedback">Optional comments</label><textarea id="feedback" name="feedback" rows="4" maxlength="4000"></textarea><button class="button button--primary" data-proceed type="submit">Submit completed session</button></form>
   {% endif %}
 </section>

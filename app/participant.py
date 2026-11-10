@@ -117,20 +117,72 @@ def _progress_stage():
     return participant.current_stage if participant else "welcome"
 
 
+def _adaptive_state_for(participant, choice):
+    try:
+        state = json.loads(participant.adaptive_state or "{}")
+    except (TypeError, json.JSONDecodeError):
+        state = {}
+    if not isinstance(state, dict):
+        state = {}
+    condition_index = _condition_trial_index(choice)
+    condition_state = state.setdefault(
+        choice.condition_id,
+        {
+            "current_x": choice.alternative_reward,
+            "step_index": max(0, condition_index - 1),
+            "previous_choice": None,
+            "offers_presented": max(0, condition_index - 1),
+            "last_presented_trial": None,
+        },
+    )
+    condition_state.setdefault("current_x", choice.alternative_reward)
+    condition_state.setdefault("step_index", max(0, condition_index - 1))
+    condition_state.setdefault("previous_choice", None)
+    condition_state.setdefault("offers_presented", max(0, condition_index - 1))
+    condition_state.setdefault("last_presented_trial", None)
+    return state, condition_state
+
+
+def _record_offer_presentation(participant, choice):
+    if choice.is_catch:
+        return
+    state, condition_state = _adaptive_state_for(participant, choice)
+    if condition_state["last_presented_trial"] != choice.trial_number:
+        condition_state["offers_presented"] += 1
+        condition_state["last_presented_trial"] = choice.trial_number
+        condition_state["current_x"] = choice.alternative_reward
+        participant.adaptive_state = json.dumps(state, sort_keys=True)
+        db.session.commit()
+
+
 def _create_choice_schedule(participant):
     rng = random.Random(participant.random_seed)
-    schedule = build_trial_schedule(rng)
+    legacy = participant.experiment_version == design.LEGACY_EXPERIMENT_VERSION
+    task_rewards = (design.CATCH_TASK_REWARD,) if legacy else design.TASK_REWARDS
+    schedule = build_trial_schedule(
+        rng,
+        task_rewards=task_rewards,
+        legacy_condition_ids=legacy,
+    )
     offer_rng = random.Random(participant.random_seed ^ 0xA55A)
     condition_offers = {}
+    adaptive_state = {}
     for row in schedule:
         if row["is_catch"]:
             alternative, reward, level, duration = catch_trial_rewards(row["catch_type"])
         else:
             key = row["condition_id"]
             if key not in condition_offers:
-                condition_offers[key] = initial_offer(offer_rng)
+                condition_offers[key] = initial_offer(offer_rng, row["reward"])
+                adaptive_state[key] = {
+                    "current_x": condition_offers[key],
+                    "step_index": 0,
+                    "previous_choice": None,
+                    "offers_presented": 0,
+                    "last_presented_trial": None,
+                }
             alternative = condition_offers[key] if row["within_condition_trial"] == 1 else None
-            reward, level, duration = design.TASK_REWARD, row["level"], row["duration"]
+            reward, level, duration = row["reward"], row["level"], row["duration"]
         db.session.add(
             Choice(
                 participant_id=participant.participant_id,
@@ -147,6 +199,7 @@ def _create_choice_schedule(participant):
             )
         )
     participant.current_stage = "choices"
+    participant.adaptive_state = json.dumps(adaptive_state, sort_keys=True)
     db.session.commit()
 
 
@@ -455,11 +508,12 @@ def choice():
     if current is None:
         _select_implemented_outcome(participant)
         return redirect(url_for("participant.outcome"))
+    _record_offer_presentation(participant, current)
     return render_template(
         "choice.html",
         progress_stage=participant.current_stage,
         choice=current,
-        total=design.CHOICES_PER_CONDITION * len(design.ENABLED_N_BACK_LEVELS) * len(design.DURATIONS_MINUTES) + sum(design.CATCH_TRIALS.values()),
+        total=Choice.query.filter_by(participant_id=participant.participant_id).count(),
         csrf_value=__import__("flask_wtf.csrf", fromlist=["generate_csrf"]).generate_csrf(),
     )
 
@@ -489,6 +543,11 @@ def submit_choice(trial_number):
     current.response_time_ms = response_time
 
     if not current.is_catch:
+        state, condition_state = _adaptive_state_for(participant, current)
+        if condition_state["last_presented_trial"] != current.trial_number:
+            condition_state["offers_presented"] += 1
+            condition_state["last_presented_trial"] = current.trial_number
+        condition_state["previous_choice"] = current.chosen_option
         next_condition_choice = Choice.query.filter(
             Choice.participant_id == participant.participant_id,
             Choice.condition_id == current.condition_id,
@@ -497,11 +556,19 @@ def submit_choice(trial_number):
             Choice.trial_number > current.trial_number,
         ).order_by(Choice.trial_number).first()
         if next_condition_choice:
-            next_condition_choice.alternative_reward = adjust_offer(
+            next_offer = adjust_offer(
                 current.alternative_reward,
                 chose_task=current.task_selected,
-                step_index=(current.trial_number and _condition_trial_index(current) - 1),
+                step_index=condition_state["step_index"],
+                task_reward=current.task_reward,
             )
+            condition_state["current_x"] = next_offer
+            condition_state["step_index"] = min(
+                condition_state["step_index"] + 1,
+                len(design.ADAPTIVE_STEPS) - 1,
+            )
+            next_condition_choice.alternative_reward = next_offer
+        participant.adaptive_state = json.dumps(state, sort_keys=True)
     try:
         db.session.commit()
     except IntegrityError:
@@ -528,7 +595,11 @@ def _select_implemented_outcome(participant):
     completed_main = Choice.query.filter_by(
         participant_id=participant.participant_id, is_catch=False
     ).filter(Choice.chosen_option.isnot(None)).order_by(Choice.trial_number).all()
-    if len(completed_main) != len(design.ENABLED_N_BACK_LEVELS) * len(design.DURATIONS_MINUTES) * design.CHOICES_PER_CONDITION:
+    expected_main = Choice.query.filter_by(
+        participant_id=participant.participant_id,
+        is_catch=False,
+    ).count()
+    if not expected_main or len(completed_main) != expected_main:
         return
     selected = random.Random(participant.random_seed ^ 0xC0FFEE).choice(completed_main)
     outcome_data = implemented_outcome(
@@ -605,7 +676,7 @@ def outcome_task():
         progress_stage=participant.current_stage,
         task=_task_context(task, outcome_record.choice.duration_minutes * 60, url_for("participant.outcome_task_complete")),
         heading="Your selected task",
-        task_description=f"Complete the {task.task_level}-back task for {outcome_record.choice.duration_minutes} minutes to receive 10 credits.",
+        task_description=f"Complete the {task.task_level}-back task for {outcome_record.choice.duration_minutes} minutes to receive {outcome_record.choice.task_reward:g} credits.",
     )
 
 

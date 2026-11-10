@@ -4,13 +4,13 @@ A server-rendered Flask research instrument for collecting trial-level choices a
 
 ## Research design
 
-The main design crosses four N-back levels (0-, 1-, 2-, and 3-back) with four task durations (1, 2, 4, and 8 minutes). Each of the 16 conditions has five adaptive choices, for 80 main trials. Six interleaved checks bring the session total to 86 choices. Each main choice compares a variable no-task reward with 10 credits after the displayed cognitive task. One of the 80 main choices, never a catch trial, is randomly selected for implementation.
+The main design crosses three task rewards (5, 10, and 20 credits), four N-back levels (0-, 1-, 2-, and 3-back), and four task durations (1, 2, 4, and 8 minutes), for 48 conditions. Each condition has `CHOICES_PER_CONDITION=5` adaptive choices (researcher-editable in `app/experiment_design.py`), for 240 main choices. Six interleaved checks bring the session total to 246 choices. Each main choice compares a variable no-task reward X with the condition's fixed task reward R. One of the 240 main choices, never a catch trial, is randomly selected for implementation.
 
-The no-task offer starts near 5 credits with up to 1 credit of jitter. Choosing the task raises the next offer for that condition; choosing no task lowers it. Step sizes are 2.5, 1.25, 0.625, and 0.3125 credits. All offers are bounded between 0.5 and 9.5 credits. Trial-level choices are stored separately; the final staircase offer is not treated as an SV estimate.
+Each condition has an independent staircase keyed by `R{reward}_E{level}_T{duration}`. Its first no-task offer starts at half of R with up to 1 credit of jitter. Choosing the task raises the next X for that same condition; choosing no task lowers it. Step sizes are 2.5, 1.25, 0.625, and 0.3125 credits. Every offer is bounded between 0 and that condition's R. The participant's `adaptive_state` records current X, next step, previous choice, and offers presented for each condition. Trial-level choices are stored separately; the final staircase offer is not treated as an SV estimate.
 
 The task is a browser-based letter N-back. Space means a match and F means no match. Letters are shown for 500 ms, followed by 2,000 ms blank. Practice is 60 seconds at each enabled level in randomized order. Sequence generation and response scoring are server-validated. The selected outcome task uses the exact level and duration from the original choice.
 
-The reward is fixed at $R=10$ credits. Thus, the experiment estimates how duration $T$ and operational effort $E$ affect subjective value at this reward level; it does not identify a complete reward-dependent function $SV(R,T,E)$. N-back level is an operational measure of demand, not a perfect direct measure of cognitive effort. Subjective effort ratings provide a separate measure.
+Varying R permits investigation of whether subjective value scales proportionally with reward or whether reward interacts with duration T and operational effort E. N-back level is an operational measure of demand, not a perfect direct measure of cognitive effort. Subjective effort ratings provide a separate measure.
 
 ### Candidate subjective-value models
 
@@ -18,11 +18,10 @@ The researcher analysis page and exports support later trial-level modelling. Th
 
 1. **M1 — Additive:** $SV = R - aT - bE$
 2. **M2 — Additive with interaction:** $SV = R - aT - bE - cTE$
-3. **M3 — Effort-weighted time:** $SV = R - T^q(a + bE^p)$
-4. **M4 — Hyperbolic:** $SV = R / (1 + aT + bE + cTE)$
-5. **M5 — Exponential:** $SV = R \times \exp[-(aT^q + bE^p + cT^qE^p)]$
+3. **M3 — Multiplicative discounting:** $SV = R \times \exp[-(aT^q + bE^p + cT^qE^p)]$
+4. **M4 — Hyperbolic discounting:** $SV = R / (1 + aT + bE + cTE)$
 
-Here $a,b,c,p,q$ are model parameters. Model comparison and inference should be done using the exported trial-level data in an appropriate Python or R analysis; the descriptive dashboard is not evidence that one equation is best.
+Here $a,b,c,p,q$ are model parameters. These are candidates, not established equations. Model comparison and inference should use trial-level choice data in an appropriate Python or R analysis; the descriptive dashboard does not select or validate a model.
 
 ## Project layout
 
@@ -73,7 +72,7 @@ Run the local server with `python run.py`, then open `http://127.0.0.1:5000/`. R
 
 Researchers can use **Survey debug** from the dashboard to create a synthetic test session at any survey step. While in that session, the debug toolbar can jump between steps and open the detailed diagnostic record. These sessions are marked `is_test=true` and excluded from research exports and descriptive analysis. Researcher credentials remain separate from participant user accounts.
 
-After deploying this update to an existing database, run `flask --app run.py init-db` once to create the new user-account table. This is additive and does not alter existing participant tables.
+For an existing database, run `.venv/bin/flask --app run.py init-db` before starting the updated app. The command creates missing tables and adds `participant.experiment_version` with an `ALTER TABLE`; it does not rebuild tables or rewrite/delete participant data. Existing participants are marked `fixed_reward_v1`, so their already-created schedules and any not-yet-created fixed-10 schedule remain on the original 80-main-choice design. New participants use `variable_reward_v2` and receive the 240-main-choice design. The migration is idempotent and can be run again safely.
 
 Create labelled synthetic dashboard examples with `flask --app run.py seed-demo`. They have `is_test=true`, are visibly labelled, and are excluded from all five real research exports. The seed command is idempotent and does not create genuine participant records.
 
@@ -87,7 +86,7 @@ Run the automated suite with:
 python -m unittest discover -s tests -v
 ```
 
-The tests cover the 16-condition/86-choice schedule, interleaving and positions, staircase bounds/direction, N-back sequence and response validation, implementation outcome rules, consent eligibility, state/duplicate-choice protection, researcher authentication, and CSV columns and synthetic-data exclusion.
+The tests cover all 48 R/T/E conditions and 246 choices, configurable condition counts, interleaving, reward-bounded independent staircases, catch isolation, legacy migration/preservation, N-back sequence and response validation, exact outcome reward resolution, researcher authentication, and R columns in every CSV export.
 
 ## Data quality and analysis
 
@@ -102,7 +101,7 @@ Checks are recorded as participant quality flags and do not delete data or autom
 
 Age ineligibility and a second failed comprehension attempt end the session with a recorded reason. A researcher can mark another session excluded from its detail page; original records and flags remain inspectable and included in descriptive summaries and real exports. Synthetic data is the only data filtered from research exports/analysis.
 
-Researcher downloads are separate files: `participants.csv`, `choices.csv`, `nback_responses.csv`, `effort_ratings.csv`, and `implemented_outcomes.csv`. Participant IDs are preserved across files. The analysis page reports choice acceptance by condition, duration, and effort level; practice ratings; N-back accuracy/reaction time; and completion/exclusion counts. It does not fit or rank SV models.
+Researcher downloads are separate files: `participants.csv`, `choices.csv`, `nback_responses.csv`, `effort_ratings.csv`, and `implemented_outcomes.csv`. Each export includes a `task_reward_r` column; it is blank for session-level or practice records that do not have a task reward. Participant IDs are preserved across files. The analysis page reports choice acceptance by R/T/E condition and reward, along with pooled duration/effort summaries, practice ratings, N-back accuracy/reaction time, and completion/exclusion counts. It does not fit or rank SV models.
 
 ## PythonAnywhere deployment
 
@@ -156,7 +155,7 @@ Researcher downloads are separate files: `participants.csv`, `choices.csv`, `nba
    unset ADMIN_PASSWORD
    ```
 
-   The password is stored as a Werkzeug password hash. `init-db` creates tables and creates the researcher account only if that username does not already exist.
+   The password is stored as a Werkzeug password hash. `init-db` creates missing tables, safely adds the experiment-version column to an existing SQLite database without deleting records, and creates the researcher account only if that username does not already exist. Existing participant sessions remain on the fixed-10-credit design.
 8. Confirm the database path points to the project `instance/experiment.sqlite3`, not `/tmp` or another ephemeral directory. Ensure the `instance/` directory is writable by the web app.
 9. Click **Reload** in the PythonAnywhere Web tab.
 10. Verify the participant welcome page at `/` and researcher sign-in at `/researcher/login`. Create a test session and verify its saved records from the authenticated dashboard before recruitment.
@@ -165,6 +164,6 @@ PythonAnywhere WSGI imports `app` from the project package; `run.py` only starts
 
 ## Before recruitment
 
-The research team must add its real contact details and any required ethics approval information to the participant materials, define how credits convert to bonus payment, and verify those arrangements on the deployed site. The application does not claim ethics approval. Researchers should run a technical pilot, confirm performance and timing on the target browsers, and review whether 3-back performance is adequate; `ENABLED_N_BACK_LEVELS` can be edited in `app/experiment_design.py` if a level must be disabled for a pilot iteration.
+The research team must add its real contact details and any required ethics approval information to the participant materials, define how credits convert to bonus payment, and verify those arrangements on the deployed site. The application does not claim ethics approval. The expanded 246-choice design will take longer than the previous 86-choice version; pilot the full session to establish a credible duration estimate and assess fatigue, attrition, and data quality before recruitment, then add that estimate to the consent materials. Researchers should also confirm performance and timing on target browsers and review whether 3-back performance is adequate; `ENABLED_N_BACK_LEVELS` can be edited in `app/experiment_design.py` if a level must be disabled for a pilot iteration.
 
 One design choice requires particular attention: participants whose randomly implemented choice is no-task are asked for an **expected** mental-demand rating for the selected task, stored as `rating_type=expected`. Participants who complete the selected task receive a `post_task` rating. These are distinct measures and should not be pooled as though both were ratings of experienced task demand.

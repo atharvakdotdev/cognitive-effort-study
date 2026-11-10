@@ -5,7 +5,7 @@ import random
 from datetime import timedelta
 
 from . import db, experiment_design as design
-from .experiment import build_trial_schedule, catch_trial_rewards, initial_offer
+from .experiment import adjust_offer, build_trial_schedule, catch_trial_rewards, initial_offer
 from .models import Choice, EffortRating, Participant, utc_now
 
 
@@ -33,17 +33,32 @@ def seed_demo_data() -> int:
         db.session.flush()
         rng = random.Random(seed)
         schedule = build_trial_schedule(rng)
-        offers = {}
+        staircases = {}
         for trial in schedule:
             if trial["is_catch"]:
                 alternative, reward, level, duration = catch_trial_rewards(trial["catch_type"])
                 chosen = "no_task" if trial["catch_type"] == "dominated" else "task"
             else:
-                if trial["condition_id"] not in offers:
-                    offers[trial["condition_id"]] = initial_offer(rng)
-                alternative, reward = offers[trial["condition_id"]], design.TASK_REWARD
+                key = trial["condition_id"]
+                reward = trial["reward"]
+                if key not in staircases:
+                    staircases[key] = {
+                        "current_x": initial_offer(rng, reward),
+                        "step_index": 0,
+                    }
+                alternative = staircases[key]["current_x"]
                 level, duration = trial["level"], trial["duration"]
                 chosen = "task" if rng.random() < max(0.15, 0.78 - level * 0.12 - duration * 0.035) else "no_task"
+                staircases[key]["current_x"] = adjust_offer(
+                    alternative,
+                    chose_task=chosen == "task",
+                    step_index=staircases[key]["step_index"],
+                    task_reward=reward,
+                )
+                staircases[key]["step_index"] = min(
+                    staircases[key]["step_index"] + 1,
+                    len(design.ADAPTIVE_STEPS) - 1,
+                )
             db.session.add(
                 Choice(
                     participant_id=participant.participant_id,
@@ -59,7 +74,7 @@ def seed_demo_data() -> int:
                     task_position=trial["task_position"],
                     is_catch=trial["is_catch"],
                     catch_type=trial["catch_type"],
-                    timestamp=now - timedelta(hours=index, minutes=86 - trial["trial_number"]),
+                    timestamp=now - timedelta(hours=index, minutes=len(schedule) - trial["trial_number"]),
                     response_time_ms=rng.uniform(700, 8000),
                 )
             )

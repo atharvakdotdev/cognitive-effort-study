@@ -24,11 +24,13 @@ def analysis_page():
     ).all() if participant_ids else []
 
     condition_counts = defaultdict(lambda: [0, 0])
+    reward_counts = defaultdict(lambda: [0, 0])
     duration_counts = defaultdict(lambda: [0, 0])
     level_counts = defaultdict(lambda: [0, 0])
     for choice in choices:
         for key, counts in (
-            ((choice.n_back_level, choice.duration_minutes), condition_counts),
+            ((choice.task_reward, choice.n_back_level, choice.duration_minutes), condition_counts),
+            (choice.task_reward, reward_counts),
             (choice.duration_minutes, duration_counts),
             (choice.n_back_level, level_counts),
         ):
@@ -40,9 +42,14 @@ def analysis_page():
         return round(100 * accepted / total, 1) if total else None
 
     condition_rows = [
-        {"level": level, "duration": duration, "accepted": condition_counts[(level, duration)][0], "total": condition_counts[(level, duration)][1], "rate": rate(condition_counts[(level, duration)])}
+        {"reward": reward, "level": level, "duration": duration, "accepted": condition_counts[(reward, level, duration)][0], "total": condition_counts[(reward, level, duration)][1], "rate": rate(condition_counts[(reward, level, duration)])}
+        for reward in design.TASK_REWARDS
         for level in design.ENABLED_N_BACK_LEVELS
         for duration in design.DURATIONS_MINUTES
+    ]
+    reward_rows = [
+        {"reward": reward, "rate": rate(reward_counts[reward]), "total": reward_counts[reward][1]}
+        for reward in design.TASK_REWARDS
     ]
     duration_rows = [
         {"duration": duration, "rate": rate(duration_counts[duration]), "total": duration_counts[duration][1]}
@@ -91,6 +98,7 @@ def analysis_page():
         excluded=excluded,
         completion_rate=round(100 * completed / len(participants), 1) if participants else None,
         condition_rows=condition_rows,
+        reward_rows=reward_rows,
         duration_rows=duration_rows,
         level_rows=level_rows,
         rating_rows=rating_rows,

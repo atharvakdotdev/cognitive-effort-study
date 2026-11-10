@@ -9,6 +9,7 @@ from flask import Flask
 from flask_login import LoginManager
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
+from sqlalchemy import inspect
 from sqlalchemy.exc import IntegrityError
 
 from .config import Config, INSTANCE_DIR
@@ -18,6 +19,20 @@ csrf = CSRFProtect()
 login_manager = LoginManager()
 login_manager.login_view = "admin.login"
 login_manager.login_message = "Please sign in to access researcher tools."
+
+
+def upgrade_database_schema():
+    """Create missing tables and add version metadata without rebuilding data tables."""
+    db.create_all()
+    columns = {column["name"] for column in inspect(db.engine).get_columns("participant")}
+    if "experiment_version" not in columns:
+        with db.engine.begin() as connection:
+            connection.exec_driver_sql(
+                "ALTER TABLE participant ADD COLUMN experiment_version "
+                "VARCHAR(32) NOT NULL DEFAULT 'fixed_reward_v1'"
+            )
+        return True
+    return False
 
 
 def create_app(test_config=None):
@@ -89,8 +104,9 @@ def create_app(test_config=None):
 
     @application.cli.command("init-db")
     def init_db_command():
-        """Create the database schema and optionally initialize the researcher account."""
-        db.create_all()
+        """Create or safely upgrade the schema and optionally initialize a researcher account."""
+        if upgrade_database_schema():
+            click.echo("Upgraded existing participants as fixed_reward_v1; no records were rewritten.")
         username = os.environ.get("ADMIN_USERNAME")
         password = os.environ.get("ADMIN_PASSWORD")
         if username and password:

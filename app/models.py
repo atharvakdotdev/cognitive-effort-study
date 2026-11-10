@@ -47,6 +47,12 @@ class UserAccount(UserMixin, db.Model):
 
 class Participant(db.Model):
     participant_id = db.Column(db.String(32), primary_key=True)
+    experiment_version = db.Column(
+        db.String(32),
+        nullable=False,
+        default="variable_reward_v2",
+        server_default="variable_reward_v2",
+    )
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
     completed_at = db.Column(db.DateTime(timezone=True))
     consented = db.Column(db.Boolean, nullable=False, default=False)

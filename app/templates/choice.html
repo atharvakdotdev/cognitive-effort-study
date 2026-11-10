@@ -19,7 +19,7 @@
       {% if choice.is_catch and choice.catch_type == 'dominated' %}
         <span class="option-description">Receive 10 credits after completing a cognitive task.</span>
       {% else %}
-        <span class="option-description">Receive 10 credits after a {{ choice.n_back_level }}-back task for {{ choice.duration_minutes }} minute{{ '' if choice.duration_minutes == 1 else 's' }}.</span>
+        <span class="option-description">Receive {{ '%.2f'|format(choice.task_reward) }} credits after a {{ choice.n_back_level }}-back task for {{ choice.duration_minutes }} minute{{ '' if choice.duration_minutes == 1 else 's' }}.</span>
       {% endif %}
       <span class="option-select">Choose task</span>
     </button>

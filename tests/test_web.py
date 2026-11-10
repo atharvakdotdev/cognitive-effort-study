@@ -4,7 +4,10 @@ import json
 import unittest
 from datetime import timedelta
 
-from app import create_app, db
+from sqlalchemy import text
+
+from app import create_app, db, experiment_design as design, upgrade_database_schema
+from app.demo_data import seed_demo_data
 from app.models import Choice, ImplementedOutcome, NBackResponse, NBackTask, Participant, Researcher, UserAccount, utc_now
 from app.nback import target_flags
 from app.participant import _create_choice_schedule, _select_implemented_outcome
@@ -45,7 +48,52 @@ class WebWorkflowTests(unittest.TestCase):
             _create_choice_schedule(participant)
         return participant
 
+    def test_additive_schema_upgrade_preserves_and_marks_existing_participant(self):
+        participant = Participant(participant_id="P-LEGACY", random_seed=123)
+        db.session.add(participant)
+        db.session.commit()
+        db.session.execute(text("ALTER TABLE participant DROP COLUMN experiment_version"))
+        db.session.commit()
+        db.session.remove()
+
+        self.assertTrue(upgrade_database_schema())
+        db.session.remove()
+        record = db.session.execute(text(
+            "SELECT participant_id, random_seed, experiment_version "
+            "FROM participant WHERE participant_id = 'P-LEGACY'"
+        )).one()
+        self.assertEqual(tuple(record), ("P-LEGACY", 123, "fixed_reward_v1"))
+        self.assertFalse(upgrade_database_schema())
+
+    def test_existing_fixed_reward_participant_keeps_legacy_schedule(self):
+        participant = Participant(
+            participant_id="P-OLD-DESIGN",
+            random_seed=123,
+            experiment_version=design.LEGACY_EXPERIMENT_VERSION,
+            current_stage="practice_rating",
+        )
+        db.session.add(participant)
+        db.session.flush()
+        _create_choice_schedule(participant)
+        choices = Choice.query.filter_by(participant_id=participant.participant_id).all()
+        main = [choice for choice in choices if not choice.is_catch]
+        self.assertEqual(len(main), 80)
+        self.assertEqual(len(choices), 86)
+        self.assertEqual({choice.task_reward for choice in choices}, {10.0})
+        self.assertTrue(all(choice.condition_id.startswith("E") for choice in main))
+
+    def test_demo_data_uses_all_reward_levels_and_reward_bounded_offers(self):
+        self.assertEqual(seed_demo_data(), 3)
+        choices = Choice.query.join(Participant).filter(Participant.is_test.is_(True)).all()
+        self.assertEqual(len(choices), 3 * 246)
+        main = [choice for choice in choices if not choice.is_catch]
+        self.assertEqual({choice.task_reward for choice in main}, set(design.TASK_REWARDS))
+        self.assertTrue(all(0 <= choice.alternative_reward <= choice.task_reward for choice in main))
+
     def test_underage_consent_is_recorded_and_terminated(self):
+        welcome = self.client.get("/")
+        self.assertIn(b"246", welcome.data)
+        self.assertNotIn("25–30 min".encode(), welcome.data)
         response = self.client.post("/consent", data={
             "age_confirmed": "no", "read_confirmed": "yes", "agree_confirmed": "yes"
         })
@@ -84,7 +132,7 @@ class WebWorkflowTests(unittest.TestCase):
         db.session.commit()
         with self.client.session_transaction() as browser_session:
             browser_session["participant_id"] = participant.participant_id
-        self.assertEqual(Choice.query.filter_by(participant_id=participant.participant_id).count(), 86)
+        self.assertEqual(Choice.query.filter_by(participant_id=participant.participant_id).count(), 246)
         self.assertEqual(self.client.post("/withdraw").status_code, 200)
         self.assertEqual(Choice.query.filter_by(participant_id=participant.participant_id).count(), 0)
         self.assertEqual(db.session.get(Participant, participant.participant_id).status, "withdrawn")
@@ -139,6 +187,73 @@ class WebWorkflowTests(unittest.TestCase):
                 self.assertGreater(next_same_condition.alternative_reward, first_main.alternative_reward)
             else:
                 self.assertLess(next_same_condition.alternative_reward, first_main.alternative_reward)
+
+    def test_staircases_are_independent_persisted_and_ignore_catch_trials(self):
+        participant = self.make_participant(participant_id="P-STAIRCASE")
+        db.session.commit()
+        with self.client.session_transaction() as browser_session:
+            browser_session["participant_id"] = participant.participant_id
+        schedule = Choice.query.filter_by(participant_id=participant.participant_id).order_by(Choice.trial_number).all()
+        first_main = next(choice for choice in schedule if not choice.is_catch)
+
+        for choice in schedule:
+            if choice.trial_number >= first_main.trial_number:
+                break
+            before = db.session.get(Participant, participant.participant_id).adaptive_state
+            self.assertTrue(choice.is_catch)
+            response = self.client.post(f"/choice/{choice.trial_number}", data={
+                "chosen_option": "no_task", "response_time_ms": "900"
+            })
+            self.assertEqual(response.status_code, 302)
+            self.assertEqual(db.session.get(Participant, participant.participant_id).adaptive_state, before)
+
+        same_dimensions_other_reward = Choice.query.filter(
+            Choice.participant_id == participant.participant_id,
+            Choice.is_catch.is_(False),
+            Choice.n_back_level == first_main.n_back_level,
+            Choice.duration_minutes == first_main.duration_minutes,
+            Choice.task_reward != first_main.task_reward,
+        ).order_by(Choice.task_reward).first()
+        self.assertIsNotNone(same_dimensions_other_reward)
+        state_before = json.loads(participant.adaptive_state)
+        other_state_before = state_before[same_dimensions_other_reward.condition_id].copy()
+
+        shown = self.client.get("/choice")
+        self.assertEqual(shown.status_code, 200)
+        self.assertIn(f"{first_main.task_reward:.2f}".encode(), shown.data)
+        self.client.post(f"/choice/{first_main.trial_number}", data={
+            "chosen_option": "task", "response_time_ms": "900"
+        })
+        state_after = json.loads(db.session.get(Participant, participant.participant_id).adaptive_state)
+        condition_state = state_after[first_main.condition_id]
+        self.assertEqual(condition_state["previous_choice"], "task")
+        self.assertEqual(condition_state["step_index"], 1)
+        self.assertEqual(condition_state["offers_presented"], 1)
+        self.assertEqual(state_after[same_dimensions_other_reward.condition_id], other_state_before)
+
+        next_same_condition = Choice.query.filter_by(
+            participant_id=participant.participant_id,
+            condition_id=first_main.condition_id,
+            is_catch=False,
+        ).filter(Choice.trial_number > first_main.trial_number).order_by(Choice.trial_number).first()
+        self.assertGreater(next_same_condition.alternative_reward, first_main.alternative_reward)
+        self.assertEqual(condition_state["current_x"], next_same_condition.alternative_reward)
+
+        between = Choice.query.filter(
+            Choice.participant_id == participant.participant_id,
+            Choice.trial_number > first_main.trial_number,
+            Choice.trial_number < next_same_condition.trial_number,
+        ).order_by(Choice.trial_number).all()
+        for choice in between:
+            self.assertEqual(self.client.get("/choice").status_code, 200)
+            response = self.client.post(f"/choice/{choice.trial_number}", data={
+                "chosen_option": "no_task", "response_time_ms": "900"
+            })
+            self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.client.get("/choice").status_code, 200)
+        state_after_interleaving = json.loads(db.session.get(Participant, participant.participant_id).adaptive_state)
+        self.assertEqual(state_after_interleaving[first_main.condition_id]["current_x"], next_same_condition.alternative_reward)
+        self.assertEqual(state_after_interleaving[first_main.condition_id]["offers_presented"], 2)
 
     def test_only_one_completed_main_choice_is_implemented_and_choice_is_preserved(self):
         participant = self.make_participant(participant_id="P-OUTCOME")
@@ -320,18 +435,19 @@ class WebWorkflowTests(unittest.TestCase):
         self.assertEqual(self.client.get("/researcher/analysis").status_code, 200)
 
         exports = {
-            "/researcher/export/participants.csv": "session_creation_time",
-            "/researcher/export/choices.csv": "alternative_reward_x",
-            "/researcher/export/nback-responses.csv": "correct_response_target",
-            "/researcher/export/effort-ratings.csv": "rating_0_100",
-            "/researcher/export/implemented-outcomes.csv": "selected_trial_number",
+            "/researcher/export/participants.csv": ("session_creation_time", "task_reward_r"),
+            "/researcher/export/choices.csv": ("alternative_reward_x", "task_reward_r"),
+            "/researcher/export/nback-responses.csv": ("correct_response_target", "task_reward_r"),
+            "/researcher/export/effort-ratings.csv": ("rating_0_100", "task_reward_r"),
+            "/researcher/export/implemented-outcomes.csv": ("selected_trial_number", "task_reward_r"),
         }
-        for path, expected_column in exports.items():
+        for path, expected_columns in exports.items():
             response = self.client.get(path)
             self.assertEqual(response.status_code, 200, path)
             header = next(csv.reader(io.StringIO(response.get_data(as_text=True).lstrip("\ufeff"))))
             self.assertIn("participant_id", header)
-            self.assertIn(expected_column, header)
+            for expected_column in expected_columns:
+                self.assertIn(expected_column, header)
         exported_choices = self.client.get("/researcher/export/choices.csv").get_data(as_text=True)
         self.assertIn("P-REAL", exported_choices)
         self.assertNotIn("SYNTHETIC-001", exported_choices)

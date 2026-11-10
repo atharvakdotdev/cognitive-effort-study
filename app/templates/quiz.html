@@ -4,7 +4,7 @@
 <section class="content-panel narrow-panel">
   <p class="eyebrow">Comprehension check</p>
   <h1>Check your understanding</h1>
-  {% if retry %}<div class="notice"><strong>Review before your one retry.</strong> One choice is selected at random; the no-task option pays its displayed amount and the task option pays 10 credits after the task. You may withdraw before final submission.</div>{% endif %}
+  {% if retry %}<div class="notice"><strong>Review before your one retry.</strong> One choice is selected at random; the no-task option pays its displayed amount and the task option pays its displayed reward after the task. You may withdraw before final submission.</div>{% endif %}
   <form method="post" class="form-stack">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <fieldset class="choice-fieldset"><legend>1. How many choices determine the final outcome?</legend>
@@ -14,7 +14,7 @@
     </fieldset>
     <fieldset class="choice-fieldset"><legend>2. Which statement about rewards is correct?</legend>
       <label><input type="radio" name="q2" value="task_only" required> Only the task reward is recorded</label>
-      <label><input type="radio" name="q2" value="both" required> Either the displayed no-task reward or 10 credits after the task may be implemented</label>
+      <label><input type="radio" name="q2" value="both" required> Either the displayed no-task reward or the displayed task reward may be implemented</label>
       <label><input type="radio" name="q2" value="no_consequence" required> Choices have no consequences</label>
     </fieldset>
     <fieldset class="choice-fieldset"><legend>3. When may you withdraw?</legend>
