@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}Researcher sign in | Cognitive Effort Study{% endblock %}
+{% block content %}
+<section class="content-panel narrow-panel">
+  <p class="eyebrow">Researcher access</p><h1>Sign in</h1>
+  <form method="post" class="form-stack">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="username">Username</label><input id="username" name="username" autocomplete="username" required>
+    <label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required>
+    <button class="button button--primary" type="submit">Sign in</button>
+  </form>
+</section>
+{% endblock %}

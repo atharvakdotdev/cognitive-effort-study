@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}Choice {{ choice.trial_number }} | Cognitive Effort Study{% endblock %}
+{% block content %}
+<section class="choice-panel">
+  <div class="choice-heading"><div><p class="eyebrow">Choice {{ choice.trial_number }} of {{ total }}</p><h1>Which option do you prefer?</h1></div><p class="quiet-note">Both rewards are paid at the end.</p></div>
+  <form id="choice-form" class="choice-options" method="post" action="{{ url_for('participant.submit_choice', trial_number=choice.trial_number) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_value }}">
+    <input id="chosen-option" type="hidden" name="chosen_option" value="">
+    <input id="response-time" type="hidden" name="response_time_ms" value="0">
+    <button class="option-card option-card--no-task" data-choice-start type="submit" value="no_task" style="order: {{ 0 if choice.no_task_position == 'left' else 1 }}">
+      <span class="option-label">Option A <span>No task</span></span>
+      <strong class="option-reward">{{ '%.2f'|format(choice.alternative_reward) }} <small>credits</small></strong>
+      <span class="option-description">Receive this amount without performing a cognitive task.</span>
+      <span class="option-select">Choose no task</span>
+    </button>
+    <button class="option-card option-card--task" data-choice-start type="submit" value="task" style="order: {{ 0 if choice.task_position == 'left' else 1 }}">
+      <span class="option-label">Option B <span>Complete a task</span></span>
+      <strong class="option-reward">{{ '%.2f'|format(choice.task_reward) }} <small>credits</small></strong>
+      {% if choice.is_catch and choice.catch_type == 'dominated' %}
+        <span class="option-description">Receive 10 credits after completing a cognitive task.</span>
+      {% else %}
+        <span class="option-description">Receive 10 credits after a {{ choice.n_back_level }}-back task for {{ choice.duration_minutes }} minute{{ '' if choice.duration_minutes == 1 else 's' }}.</span>
+      {% endif %}
+      <span class="option-select">Choose task</span>
+    </button>
+  </form>
+  <p class="choice-footnote">The selected option is recorded before the next choice is shown.</p>
+</section>
+{% endblock %}

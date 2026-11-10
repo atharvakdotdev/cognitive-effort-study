@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title %}{{ heading }} | Cognitive Effort Study{% endblock %}
+{% block content %}
+<section class="task-panel">
+  <p class="eyebrow">{{ 'Practice block' if task.run_type == 'practice' else 'Selected outcome' }}</p>
+  <h1>{{ heading }}</h1>
+  <p class="lede">{{ task_description }}</p>
+  <div class="task-instructions"><kbd>Space</kbd> Match <span class="key-separator">·</span> <kbd>F</kbd> No match</div>
+  <div id="task-runner" class="task-runner" aria-live="polite">
+    <div id="task-status" class="task-status">Ready when you are</div>
+    <div id="stimulus" class="stimulus" aria-label="Letter stimulus">&nbsp;</div>
+    <div id="task-progress" class="task-progress">0 / {{ task.sequence|length }}</div>
+    <div id="task-message" class="task-message">A match is a letter that follows the {{ task.task_level }}-back rule.</div>
+    <button id="start-task" class="button button--primary" type="button">Start task</button>
+    <div id="task-error" class="error-text" role="alert" hidden></div>
+  </div>
+</section>
+<script id="task-config" type="application/json">{{ task|tojson }}</script>
+{% endblock %}

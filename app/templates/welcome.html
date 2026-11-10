@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}Welcome | Cognitive Effort Study{% endblock %}
+{% block content %}
+<section class="intro-panel">
+  <p class="eyebrow">Online behavioural research</p>
+  <h1>How do time and mental effort shape a choice?</h1>
+  <p class="lede">Take part in a study about choosing between a smaller reward now and a larger reward after a cognitive task.</p>
+  <div class="study-facts">
+    <div><strong>25–30 min</strong><span>Estimated time</span></div>
+    <div><strong>18+</strong><span>Adults only</span></div>
+    <div><strong>Keyboard</strong><span>Computer required</span></div>
+  </div>
+  <a class="button button--primary" data-proceed href="{{ url_for('participant.consent') }}">Read study information <span aria-hidden="true">→</span></a>
+  <p class="quiet-note">Participation is voluntary. You can withdraw before submitting your completed session.</p>
+</section>
+{% endblock %}

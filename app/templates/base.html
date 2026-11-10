@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>{% block title %}Cognitive Effort Study{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/site.css') }}">
+  <script defer src="{{ url_for('static', filename='js/participant.js') }}"></script>
+</head>
+<body data-track-focus="{{ 'true' if progress_stage in ['choices', 'outcome_task'] else 'false' }}">
+  <div class="page-shell">
+    <header class="topbar">
+      <a class="wordmark" href="{{ url_for('participant.welcome') }}">Cognitive Effort Study</a>
+      <span class="topbar-note">Research session</span>
+      {% if has_participant_session and progress_stage != 'complete' %}
+      <form class="withdraw-form" method="post" action="{{ url_for('participant.withdraw') }}" onsubmit="return confirm('Withdraw and remove the responses collected in this session?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="text-button" type="submit">Withdraw</button>
+      </form>
+      {% endif %}
+    </header>
+
+    {% if experiment_test_mode %}<div class="test-mode-banner">TEST MODE · This session is technical data and excluded from research exports.</div>{% endif %}
+
+    {% if progress_stage != 'welcome' %}
+    {% set stage_order = ['consent', 'instructions', 'quiz', 'practice', 'choices', 'outcome', 'final_rating', 'debrief'] %}
+    {% set stage_label = {'consent': 'Consent', 'instructions': 'Instructions', 'quiz': 'Check', 'practice': 'Practice', 'practice_rating': 'Practice', 'choices': 'Choices', 'outcome': 'Outcome', 'outcome_task': 'Outcome', 'final_rating': 'Rating', 'debrief': 'Debrief', 'complete': 'Complete'} %}
+    {% set progress_index = stage_order.index(progress_stage if progress_stage in stage_order else ('practice' if progress_stage == 'practice_rating' else 'outcome' if progress_stage == 'outcome_task' else 'debrief')) %}
+    <nav class="progress" aria-label="Experiment progress">
+      {% for stage in stage_order %}
+      <span class="progress-step {{ 'is-current' if loop.index0 == progress_index else 'is-done' if loop.index0 < progress_index else '' }}">{{ stage_label[stage] }}</span>
+      {% endfor %}
+      <span class="progress-track"><span style="width: {{ ((progress_index + 1) / stage_order|length * 100)|round }}%"></span></span>
+    </nav>
+    {% endif %}
+
+    <div id="device-warning" class="device-warning" hidden role="alert">
+      This study requires a keyboard-equipped desktop or laptop. Please return using a computer to continue.
+    </div>
+    <div class="flash-stack" aria-live="polite">
+      {% for category, message in get_flashed_messages(with_categories=true) %}
+      <p class="flash flash--{{ category }}">{{ message }}</p>
+      {% endfor %}
+    </div>
+    <main id="main-content" class="main-content">
+      {% block content %}{% endblock %}
+    </main>
+    <footer class="site-footer">
+      <span>Responses are stored without direct identifiers.</span>
+      <a href="{{ url_for('admin.login') }}">Researcher sign in</a>
+    </footer>
+  </div>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}Selected outcome | Cognitive Effort Study{% endblock %}
+{% block content %}
+<section class="content-panel narrow-panel outcome-panel">
+  <p class="eyebrow">Randomly selected choice · Choice {{ outcome.choice.trial_number }}</p>
+  <h1>This choice determines your outcome</h1>
+  {% if outcome.task_selected %}
+    <div class="outcome-summary"><span>Your selected option</span><strong>Complete the cognitive task</strong><p>{{ outcome.choice.n_back_level }}-back for {{ outcome.choice.duration_minutes }} minute{{ '' if outcome.choice.duration_minutes == 1 else 's' }}</p><b>10 credits after completion</b></div>
+    <p class="prose">You selected the task on this choice. You cannot change that response. The task must be completed to receive the 10 credits.</p>
+    <form method="post" action="{{ url_for('participant.outcome_continue') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button button--primary" data-proceed type="submit">Continue to selected task</button></form>
+  {% else %}
+    <div class="outcome-summary"><span>Your selected option</span><strong>No task</strong><p>No cognitive task is required for this outcome.</p><b>{{ '%.2f'|format(outcome.credits_awarded) }} credits</b></div>
+    <form method="post" action="{{ url_for('participant.outcome_continue') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button button--primary" data-proceed type="submit">Continue</button></form>
+  {% endif %}
+</section>
+{% endblock %}

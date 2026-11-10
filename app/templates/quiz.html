@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}Comprehension check | Cognitive Effort Study{% endblock %}
+{% block content %}
+<section class="content-panel narrow-panel">
+  <p class="eyebrow">Comprehension check</p>
+  <h1>Check your understanding</h1>
+  {% if retry %}<div class="notice"><strong>Review before your one retry.</strong> One choice is selected at random; the no-task option pays its displayed amount and the task option pays 10 credits after the task. You may withdraw before final submission.</div>{% endif %}
+  <form method="post" class="form-stack">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <fieldset class="choice-fieldset"><legend>1. How many choices determine the final outcome?</legend>
+      <label><input type="radio" name="q1" value="all" required> Every choice</label>
+      <label><input type="radio" name="q1" value="one" required> One randomly selected choice</label>
+      <label><input type="radio" name="q1" value="last" required> The last choice</label>
+    </fieldset>
+    <fieldset class="choice-fieldset"><legend>2. Which statement about rewards is correct?</legend>
+      <label><input type="radio" name="q2" value="task_only" required> Only the task reward is recorded</label>
+      <label><input type="radio" name="q2" value="both" required> Either the displayed no-task reward or 10 credits after the task may be implemented</label>
+      <label><input type="radio" name="q2" value="no_consequence" required> Choices have no consequences</label>
+    </fieldset>
+    <fieldset class="choice-fieldset"><legend>3. When may you withdraw?</legend>
+      <label><input type="radio" name="q3" value="after" required> Only after the study is finished</label>
+      <label><input type="radio" name="q3" value="withdraw" required> Before final submission, using Withdraw to remove this session's responses</label>
+    </fieldset>
+    <fieldset class="choice-fieldset"><legend>4. Who may take part?</legend>
+      <label><input type="radio" name="q4" value="adult" required> Adults aged 18 or older</label>
+      <label><input type="radio" name="q4" value="any" required> Anyone</label>
+    </fieldset>
+    <button class="button button--primary" data-proceed type="submit">Submit answers</button>
+  </form>
+</section>
+{% endblock %}

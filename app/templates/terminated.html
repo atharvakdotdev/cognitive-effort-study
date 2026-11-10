@@ -1,0 +1,5 @@
+{% extends 'base.html' %}
+{% block title %}Session ended | Cognitive Effort Study{% endblock %}
+{% block content %}
+<section class="content-panel narrow-panel"><p class="eyebrow">Session ended</p><h1>You cannot continue this session.</h1><p class="prose">{% if reason == 'failed_comprehension_quiz' %}The comprehension check was not passed after the allowed retry. Your session has been recorded as incomplete for this reason.{% else %}This study is limited to participants aged 18 or older.{% endif %} Thank you for your time.</p></section>
+{% endblock %}

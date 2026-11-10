@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}Effort rating | Cognitive Effort Study{% endblock %}
+{% block content %}
+<section class="content-panel narrow-panel">
+  <p class="eyebrow">{% if rating_type == 'practice' %}Practice complete{% else %}Final rating{% endif %}</p>
+  <h1>{% if rating_type == 'expected' %}Expected mental demand{% else %}How demanding was it?{% endif %}</h1>
+  {% if rating_type == 'practice' %}
+    <p class="lede">You completed the {{ level }}-back practice block. Accuracy: {{ accuracy }}%.</p>
+    <p class="prose">How mentally demanding did you find that task?</p>
+  {% elif rating_type == 'expected' %}
+    <p class="lede">Your selected outcome did not require a task. How mentally demanding do you expect the selected {{ level }}-back task would have been?</p>
+  {% else %}
+    <p class="lede">How mentally demanding did you find the task you just completed?</p>
+  {% endif %}
+  <form method="post" class="form-stack rating-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="range-label" for="rating"><span>Not demanding at all</span><span>Extremely demanding</span></label>
+    <input id="rating" name="rating" type="range" min="0" max="100" value="50" step="1" aria-describedby="rating-value">
+    <output id="rating-value" for="rating">50</output>
+    <button class="button button--primary" data-proceed type="submit">Save rating</button>
+  </form>
+</section>
+{% endblock %}

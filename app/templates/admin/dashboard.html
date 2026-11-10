@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}Researcher dashboard | Cognitive Effort Study{% endblock %}
+{% block content %}
+<section class="admin-page">
+  <div class="admin-heading"><div><p class="eyebrow">Researcher workspace</p><h1>Sessions</h1></div><div class="admin-actions"><a class="button" href="{{ url_for('analysis.analysis_page') }}">Descriptive analysis</a><form method="post" action="{{ url_for('admin.logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button" type="submit">Sign out</button></form></div></div>
+  <div class="stat-strip">
+    <div><strong>{{ stats.total }}</strong><span>Real sessions</span></div><div><strong>{{ stats.completed }}</strong><span>Completed</span></div><div><strong>{{ stats.incomplete }}</strong><span>In progress</span></div><div><strong>{{ stats.excluded }}</strong><span>Excluded</span></div><div><strong>{{ stats.withdrawn }}</strong><span>Withdrawn</span></div><div class="synthetic-stat"><strong>{{ stats.synthetic }}</strong><span>Synthetic demo records</span></div>
+  </div>
+  <div class="section-heading"><h2>Data exports</h2><p>CSV files contain real sessions only. Synthetic demo records are never included.</p></div>
+  <div class="export-links">
+    <a href="{{ url_for('admin.export_participants') }}">Participants CSV</a><a href="{{ url_for('admin.export_choices') }}">Choices CSV</a><a href="{{ url_for('admin.export_nback_responses') }}">N-back responses CSV</a><a href="{{ url_for('admin.export_effort_ratings') }}">Effort ratings CSV</a><a href="{{ url_for('admin.export_implemented_outcomes') }}">Implemented outcomes CSV</a>
+  </div>
+  <div class="section-heading"><h2>All sessions</h2><p>Synthetic records are labelled and kept separate from research exports.</p></div>
+  <div class="table-wrap"><table><thead><tr><th>Participant ID</th><th>Created</th><th>Status</th><th>Stage</th><th>Quality flags</th></tr></thead><tbody>
+    {% for participant in participants %}<tr class="{{ 'synthetic-row' if participant.is_test else '' }}"><td><a href="{{ url_for('admin.participant_detail', participant_id=participant.participant_id) }}">{{ participant.participant_id }}</a>{% if participant.is_test %}<span class="tag tag--synthetic">SYNTHETIC · TEST</span>{% endif %}</td><td>{{ participant.created_at.strftime('%Y-%m-%d %H:%M') if participant.created_at else '' }}</td><td>{{ participant.status }}</td><td>{{ participant.current_stage }}</td><td>{{ participant.quality_flags if participant.quality_flags != '[]' else '—' }}</td></tr>{% else %}<tr><td colspan="5" class="empty-state">No sessions yet.</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+{% endblock %}
