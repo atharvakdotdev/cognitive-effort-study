@@ -5,7 +5,7 @@ import unittest
 from datetime import timedelta
 
 from app import create_app, db
-from app.models import Choice, ImplementedOutcome, NBackResponse, NBackTask, Participant, Researcher, utc_now
+from app.models import Choice, ImplementedOutcome, NBackResponse, NBackTask, Participant, Researcher, UserAccount, utc_now
 from app.nback import target_flags
 from app.participant import _create_choice_schedule, _select_implemented_outcome
 
@@ -219,6 +219,78 @@ class WebWorkflowTests(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("/researcher/login", response.location)
         self.assertEqual(self.client.get("/researcher/login").status_code, 200)
+
+    def test_user_account_resumes_its_session_and_cannot_open_researcher_tools(self):
+        self.assertEqual(self.client.get("/account/register").status_code, 200)
+        self.assertEqual(self.client.get("/account/login").status_code, 200)
+        response = self.client.post("/account/register", data={
+            "username": "study_user",
+            "password": "a-long-test-password",
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.client.get("/researcher/").status_code, 403)
+        self.client.post("/consent", data={
+            "age_confirmed": "yes", "read_confirmed": "yes", "agree_confirmed": "yes"
+        })
+        account = UserAccount.query.one()
+        participant = db.session.get(Participant, account.participant_id)
+        self.assertIsNotNone(participant)
+        self.assertFalse(participant.is_test)
+        self.client.post("/account/logout")
+        response = self.client.post("/account/login", data={
+            "username": "study_user",
+            "password": "a-long-test-password",
+        })
+        self.assertEqual(response.status_code, 302)
+        resumed = self.client.get("/resume")
+        self.assertIn("/instructions", resumed.location)
+
+    def test_researcher_debug_jumps_only_through_synthetic_sessions(self):
+        researcher = Researcher(username="debugger")
+        researcher.set_password("not-a-production-password")
+        db.session.add(researcher)
+        db.session.commit()
+        self.client.post("/researcher/login", data={
+            "username": "debugger", "password": "not-a-production-password"
+        })
+        self.assertEqual(self.client.get("/researcher/debug").status_code, 200)
+        response = self.client.post("/researcher/debug/start", data={"stage": "choices"})
+        self.assertEqual(response.status_code, 302)
+        with self.client.session_transaction() as browser_session:
+            participant_id = browser_session["participant_id"]
+            self.assertTrue(browser_session["researcher_debug"])
+        participant = db.session.get(Participant, participant_id)
+        self.assertTrue(participant.is_test)
+        detail = self.client.get(f"/researcher/participants/{participant_id}")
+        self.assertEqual(detail.status_code, 200)
+        self.assertIn(b"Raw N-back responses", detail.data)
+        step_pages = {
+            "consent": "/consent",
+            "instructions": "/instructions",
+            "quiz": "/quiz",
+            "practice": "/practice/0",
+            "practice_rating": "/practice-rating/0",
+            "choices": "/choice",
+            "outcome": "/outcome",
+            "outcome_task": "/outcome/task",
+            "final_rating": "/final-rating",
+            "debrief": "/debrief",
+            "complete": "/debrief",
+        }
+        for stage, page in step_pages.items():
+            with self.subTest(stage=stage):
+                self.client.post("/researcher/debug/jump", data={"stage": stage})
+                self.assertEqual(self.client.get(page).status_code, 200)
+        real = self.make_participant(participant_id="P-REAL-DEBUG", stage="choices")
+        db.session.commit()
+        with self.client.session_transaction() as browser_session:
+            browser_session["participant_id"] = real.participant_id
+            browser_session["researcher_debug"] = True
+        self.assertEqual(
+            self.client.post("/researcher/debug/jump", data={"stage": "quiz"}).status_code,
+            403,
+        )
+        self.assertEqual(self.client.get("/researcher/participants/P-NOT-REAL").status_code, 404)
 
     def test_login_and_csv_exports_include_expected_columns_and_exclude_synthetic(self):
         real = Participant(participant_id="P-REAL", random_seed=1, is_test=False, current_stage="choices")

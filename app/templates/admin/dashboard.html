@@ -2,7 +2,7 @@
 {% block title %}Researcher dashboard | Cognitive Effort Study{% endblock %}
 {% block content %}
 <section class="admin-page">
-  <div class="admin-heading"><div><p class="eyebrow">Researcher workspace</p><h1>Sessions</h1></div><div class="admin-actions"><a class="button" href="{{ url_for('analysis.analysis_page') }}">Descriptive analysis</a><form method="post" action="{{ url_for('admin.logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button" type="submit">Sign out</button></form></div></div>
+  <div class="admin-heading"><div><p class="eyebrow">Researcher workspace</p><h1>Sessions</h1></div><div class="admin-actions"><a class="button" href="{{ url_for('admin.debug_workspace') }}">Survey debug</a><a class="button" href="{{ url_for('analysis.analysis_page') }}">Descriptive analysis</a><form method="post" action="{{ url_for('admin.logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button" type="submit">Sign out</button></form></div></div>
   <div class="stat-strip">
     <div><strong>{{ stats.total }}</strong><span>Real sessions</span></div><div><strong>{{ stats.completed }}</strong><span>Completed</span></div><div><strong>{{ stats.incomplete }}</strong><span>In progress</span></div><div><strong>{{ stats.excluded }}</strong><span>Excluded</span></div><div><strong>{{ stats.withdrawn }}</strong><span>Withdrawn</span></div><div class="synthetic-stat"><strong>{{ stats.synthetic }}</strong><span>Synthetic demo records</span></div>
   </div>

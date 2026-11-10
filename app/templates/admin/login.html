@@ -9,5 +9,6 @@
     <label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required>
     <button class="button button--primary" type="submit">Sign in</button>
   </form>
+  <p class="quiet-note">Participant? <a href="{{ url_for('accounts.login') }}">User sign in</a> · <a href="{{ url_for('accounts.register') }}">Create a user account</a>.</p>
 </section>
 {% endblock %}

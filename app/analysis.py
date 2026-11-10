@@ -3,9 +3,9 @@
 from collections import defaultdict
 
 from flask import Blueprint, render_template
-from flask_login import login_required
 
 from . import experiment_design as design
+from .auth import researcher_required
 from .models import Choice, EffortRating, NBackResponse, Participant
 
 analysis_bp = Blueprint("analysis", __name__, url_prefix="/researcher/analysis")
@@ -13,7 +13,7 @@ analysis_bp = Blueprint("analysis", __name__, url_prefix="/researcher/analysis")
 
 @analysis_bp.get("")
 @analysis_bp.get("/")
-@login_required
+@researcher_required
 def analysis_page():
     participants = Participant.query.filter(Participant.is_test.is_(False)).all()
     participant_ids = [participant.participant_id for participant in participants]

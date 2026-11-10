@@ -13,6 +13,9 @@
     <header class="topbar">
       <a class="wordmark" href="{{ url_for('participant.welcome') }}">Cognitive Effort Study</a>
       <span class="topbar-note">Research session</span>
+      {% if current_user.is_authenticated and current_user.account_type == 'user' %}
+      <form class="account-form" method="post" action="{{ url_for('accounts.logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="text-button" type="submit">Sign out</button></form>
+      {% endif %}
       {% if has_participant_session and progress_stage != 'complete' %}
       <form class="withdraw-form" method="post" action="{{ url_for('participant.withdraw') }}" onsubmit="return confirm('Withdraw and remove the responses collected in this session?');">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -22,6 +25,23 @@
     </header>
 
     {% if experiment_test_mode %}<div class="test-mode-banner">TEST MODE · This session is technical data and excluded from research exports.</div>{% endif %}
+
+    {% if researcher_debug and debug_participant %}
+    <aside class="debug-toolbar" aria-label="Researcher debug controls">
+      <div><strong>Researcher debug · synthetic data</strong><span>{{ debug_participant.participant_id }} · {{ debug_participant.current_stage }} · seed {{ debug_participant.random_seed }}</span></div>
+      <form method="post" action="{{ url_for('admin.debug_jump') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="visually-hidden" for="debug-stage">Jump to survey step</label>
+        <select id="debug-stage" name="stage">
+          {% for value, label in [('consent', 'Consent'), ('instructions', 'Instructions'), ('quiz', 'Comprehension check'), ('practice', 'Practice task'), ('practice_rating', 'Practice rating'), ('choices', 'Reward choices'), ('outcome', 'Selected outcome'), ('outcome_task', 'Outcome task'), ('final_rating', 'Final rating'), ('debrief', 'Debrief'), ('complete', 'Complete')] %}
+          <option value="{{ value }}" {{ 'selected' if value == debug_participant.current_stage else '' }}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <button class="button" type="submit">Jump</button>
+        <a class="text-button" href="{{ url_for('admin.participant_detail', participant_id=debug_participant.participant_id) }}">Debug data</a>
+      </form>
+    </aside>
+    {% endif %}
 
     {% if progress_stage != 'welcome' %}
     {% set stage_order = ['consent', 'instructions', 'quiz', 'practice', 'choices', 'outcome', 'final_rating', 'debrief'] %}
@@ -47,8 +67,8 @@
       {% block content %}{% endblock %}
     </main>
     <footer class="site-footer">
-      <span>Responses are stored without direct identifiers.</span>
-      <a href="{{ url_for('admin.login') }}">Researcher sign in</a>
+      <span>Responses use a random participant code.</span>
+      <span class="footer-links"><a href="{{ url_for('accounts.login') }}">User sign in</a><a href="{{ url_for('accounts.register') }}">Create user account</a><a href="{{ url_for('admin.login') }}">Researcher sign in</a></span>
     </footer>
   </div>
 </body>

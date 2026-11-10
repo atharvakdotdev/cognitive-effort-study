@@ -40,26 +40,51 @@ def create_app(test_config=None):
     login_manager.init_app(application)
 
     from . import models  # noqa: F401
+    from .accounts import accounts_bp
     from .participant import participant_bp
     from .admin import admin_bp
     from .analysis import analysis_bp
     application.register_blueprint(participant_bp)
+    application.register_blueprint(accounts_bp)
     application.register_blueprint(admin_bp)
     application.register_blueprint(analysis_bp)
 
     @login_manager.user_loader
     def load_researcher(user_id):
-        from .models import Researcher
+        from .models import Researcher, UserAccount
 
-        return db.session.get(Researcher, int(user_id))
+        account_type, separator, account_id = user_id.partition(":")
+        try:
+            if separator and account_type == "researcher":
+                return db.session.get(Researcher, int(account_id))
+            if separator and account_type == "user":
+                return db.session.get(UserAccount, int(account_id))
+            return db.session.get(Researcher, int(user_id))
+        except ValueError:
+            return None
 
     @application.context_processor
     def participant_context():
         from flask import current_app, session
+        from flask_login import current_user
+        from .models import Participant
+
+        is_researcher = (
+            current_user.is_authenticated
+            and getattr(current_user, "account_type", None) == "researcher"
+        )
+        researcher_debug = bool(is_researcher and session.get("researcher_debug"))
+        debug_participant = (
+            db.session.get(Participant, session.get("participant_id"))
+            if researcher_debug else None
+        )
 
         return {
             "has_participant_session": bool(session.get("participant_id")),
             "experiment_test_mode": current_app.config.get("EXPERIMENT_TEST_MODE", False),
+            "is_researcher": is_researcher,
+            "researcher_debug": researcher_debug and bool(debug_participant and debug_participant.is_test),
+            "debug_participant": debug_participant if debug_participant and debug_participant.is_test else None,
         }
 
     @application.cli.command("init-db")

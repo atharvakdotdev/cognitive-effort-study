@@ -6,6 +6,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, session, url_for
+from flask_login import current_user
 from sqlalchemy.exc import IntegrityError
 
 from . import db
@@ -28,6 +29,7 @@ from .models import (
     NBackTask,
     Participant,
     QuizAttempt,
+    UserAccount,
     utc_now,
 )
 from .nback import generate_sequence, validate_responses
@@ -60,6 +62,16 @@ def require_participant():
     if participant is None:
         return None
     return participant
+
+
+def _is_researcher_debug(participant):
+    return bool(
+        participant
+        and participant.is_test
+        and session.get("researcher_debug")
+        and current_user.is_authenticated
+        and getattr(current_user, "account_type", None) == "researcher"
+    )
 
 
 def _json_value(value, fallback):
@@ -231,7 +243,8 @@ def welcome():
 @participant_bp.route("/consent", methods=["GET", "POST"])
 def consent():
     participant = current_participant()
-    if participant:
+    researcher_debug = _is_researcher_debug(participant)
+    if participant and not researcher_debug:
         return _redirect_for_stage(participant)
     if request.method == "POST":
         age_eligible = request.form.get("age_confirmed") == "yes"
@@ -239,13 +252,18 @@ def consent():
         voluntary = request.form.get("agree_confirmed") == "yes"
         seed = secrets.randbits(32)
         is_test = current_app.config.get("EXPERIMENT_TEST_MODE", False)
-        participant = Participant(
-            participant_id=f"{'TEST' if is_test else 'P'}-{secrets.token_hex(8).upper()}",
-            random_seed=seed,
-            age_eligible=age_eligible,
-            consented=age_eligible and has_read and voluntary,
-            is_test=is_test,
-        )
+        if researcher_debug:
+            participant.random_seed = seed
+            participant.age_eligible = age_eligible
+            participant.consented = age_eligible and has_read and voluntary
+        else:
+            participant = Participant(
+                participant_id=f"{'TEST' if is_test else 'P'}-{secrets.token_hex(8).upper()}",
+                random_seed=seed,
+                age_eligible=age_eligible,
+                consented=age_eligible and has_read and voluntary,
+                is_test=is_test,
+            )
         if not age_eligible:
             participant.status = "excluded"
             participant.current_stage = "excluded"
@@ -261,9 +279,13 @@ def consent():
             )
         db.session.add(participant)
         db.session.commit()
-        if participant.status == "in_progress":
+        if participant.status == "in_progress" or researcher_debug:
             session["participant_id"] = participant.participant_id
             session.permanent = True
+            if current_user.is_authenticated and getattr(current_user, "account_type", None) == "user" and participant.status == "in_progress":
+                account = db.session.get(UserAccount, current_user.id)
+                account.participant_id = participant.participant_id
+                db.session.commit()
         else:
             session.pop("participant_id", None)
         return _redirect_for_stage(participant)

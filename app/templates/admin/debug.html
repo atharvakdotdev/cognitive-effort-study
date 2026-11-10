@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}Researcher debug | Cognitive Effort Study{% endblock %}
+{% block content %}
+<section class="admin-page">
+  <a class="back-link" href="{{ url_for('admin.dashboard') }}">← Researcher workspace</a>
+  <div class="admin-heading"><div><p class="eyebrow">Synthetic test session</p><h1>Survey debug</h1></div></div>
+  <p class="lede">Start a labeled test session at any step, then use the debug toolbar to move between steps. Debug sessions are excluded from research exports and analysis.</p>
+  <form method="post" action="{{ url_for('admin.debug_start') }}" class="debug-start-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="start-stage">Start at</label>
+    <select id="start-stage" name="stage">
+      {% for value, label in stages %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+    </select>
+    <button class="button button--primary" type="submit">Start test session</button>
+  </form>
+</section>
+{% endblock %}

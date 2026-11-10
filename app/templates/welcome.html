@@ -11,6 +11,7 @@
     <div><strong>Keyboard</strong><span>Computer required</span></div>
   </div>
   <a class="button button--primary" data-proceed href="{{ url_for('participant.consent') }}">Read study information <span aria-hidden="true">→</span></a>
+  <p class="quiet-note account-entry">Already have a user account? <a href="{{ url_for('accounts.login') }}">Sign in to resume</a> · <a href="{{ url_for('accounts.register') }}">Create an account</a></p>
   <p class="quiet-note">Participation is voluntary. You can withdraw before submitting your completed session.</p>
 </section>
 {% endblock %}

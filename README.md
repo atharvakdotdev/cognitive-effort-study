@@ -69,7 +69,11 @@ flask --app run.py init-db
 unset ADMIN_PASSWORD
 ```
 
-Run the local server with `python run.py`, then open `http://127.0.0.1:5000/`. Researcher tools are at `/researcher/login`. The default SQLite file is `instance/experiment.sqlite3`. Set `DATABASE_URL` to an absolute SQLite URI to select another persistent location. Use a persistent `SECRET_KEY` across restarts; set `COOKIE_SECURE=1` when serving over HTTPS.
+Run the local server with `python run.py`, then open `http://127.0.0.1:5000/`. Researcher tools are at `/researcher/login`. Participants can optionally create a pseudonymous user account at `/account/register`; the account is linked to that user's participant code to support resuming, while usernames are excluded from research exports. The existing anonymous participation path remains available. The default SQLite file is `instance/experiment.sqlite3`. Set `DATABASE_URL` to an absolute SQLite URI to select another persistent location. Use a persistent `SECRET_KEY` across restarts; set `COOKIE_SECURE=1` when serving over HTTPS.
+
+Researchers can use **Survey debug** from the dashboard to create a synthetic test session at any survey step. While in that session, the debug toolbar can jump between steps and open the detailed diagnostic record. These sessions are marked `is_test=true` and excluded from research exports and descriptive analysis. Researcher credentials remain separate from participant user accounts.
+
+After deploying this update to an existing database, run `flask --app run.py init-db` once to create the new user-account table. This is additive and does not alter existing participant tables.
 
 Create labelled synthetic dashboard examples with `flask --app run.py seed-demo`. They have `is_test=true`, are visibly labelled, and are excluded from all five real research exports. The seed command is idempotent and does not create genuine participant records.
 

@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Create account' if mode == 'register' else 'User sign in' }} | Cognitive Effort Study{% endblock %}
+{% block content %}
+<section class="content-panel narrow-panel">
+  <p class="eyebrow">Participant account</p>
+  <h1>{{ 'Create an account' if mode == 'register' else 'Sign in' }}</h1>
+  <p class="quiet-note">Use a pseudonymous username. Do not use your name or contact details.</p>
+  <form method="post" class="form-stack">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="username">Username</label>
+    <input id="username" name="username" autocomplete="username" minlength="3" maxlength="32" required>
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" autocomplete="{{ 'new-password' if mode == 'register' else 'current-password' }}" {% if mode == 'register' %}minlength="12"{% endif %} required>
+    <button class="button button--primary" type="submit">{{ 'Create account' if mode == 'register' else 'Sign in' }}</button>
+  </form>
+  <p class="quiet-note">{% if mode == 'register' %}Already registered? <a href="{{ url_for('accounts.login') }}">Sign in</a>.{% else %}Need an account? <a href="{{ url_for('accounts.register') }}">Create one</a>.{% endif %}</p>
+</section>
+{% endblock %}
