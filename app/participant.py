@@ -173,7 +173,10 @@ def _create_choice_schedule(participant):
         else:
             key = row["condition_id"]
             if key not in condition_offers:
-                condition_offers[key] = initial_offer(offer_rng, row["reward"])
+                condition_offers[key] = initial_offer(
+                    offer_rng,
+                    row["reward"],
+                )
                 adaptive_state[key] = {
                     "current_x": condition_offers[key],
                     "step_index": 0,
@@ -620,7 +623,7 @@ def _select_implemented_outcome(participant):
             choice_id=selected.id,
             chosen_option=selected.chosen_option,
             task_selected=outcome_data["task_selected"],
-            credits_awarded=0.0 if outcome_data["task_selected"] else outcome_data["credits_awarded"],
+            credits_awarded=0 if outcome_data["task_selected"] else outcome_data["credits_awarded"],
         )
     )
     participant.current_stage = "outcome"

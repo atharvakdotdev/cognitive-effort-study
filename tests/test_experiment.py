@@ -7,6 +7,7 @@ from app import experiment_design as design
 from app.experiment import (
     adjust_offer,
     build_trial_schedule,
+    catch_trial_rewards,
     implemented_outcome,
     initial_offer,
 )
@@ -71,22 +72,29 @@ class ExperimentScheduleTests(unittest.TestCase):
     def test_offers_are_bounded_and_staircase_moves_in_expected_direction(self):
         for reward in design.TASK_REWARDS:
             offer = initial_offer(random.Random(10), reward)
-            self.assertGreaterEqual(offer, 0)
+            self.assertIsInstance(offer, int)
+            self.assertGreaterEqual(offer, 1)
             self.assertLessEqual(offer, reward)
             self.assertLessEqual(abs(offer - reward / 2), design.INITIAL_OFFER_JITTER)
-            self.assertGreater(adjust_offer(reward / 2, chose_task=True, step_index=0, task_reward=reward), reward / 2)
-            self.assertLess(adjust_offer(reward / 2, chose_task=False, step_index=0, task_reward=reward), reward / 2)
+            midpoint = max(1, round(reward / 2))
+            self.assertGreater(adjust_offer(midpoint, chose_task=True, step_index=0, task_reward=reward), midpoint)
+            self.assertLess(adjust_offer(midpoint, chose_task=False, step_index=0, task_reward=reward), midpoint)
             self.assertEqual(adjust_offer(reward, chose_task=True, step_index=0, task_reward=reward), reward)
-            self.assertEqual(adjust_offer(0, chose_task=False, step_index=0, task_reward=reward), 0)
+            self.assertEqual(adjust_offer(1, chose_task=False, step_index=0, task_reward=reward), 1)
 
     def test_adaptive_offer_follows_example_and_reverses_after_no_task(self):
         offer = 5.0
         offer = adjust_offer(offer, chose_task=True, step_index=0, task_reward=10)
-        self.assertEqual(offer, 7.5)
+        self.assertEqual(offer, 8)
         offer = adjust_offer(offer, chose_task=True, step_index=1, task_reward=10)
-        self.assertEqual(offer, 8.75)
+        self.assertEqual(offer, 9)
         offer = adjust_offer(offer, chose_task=False, step_index=2, task_reward=10)
-        self.assertEqual(offer, 8.125)
+        self.assertEqual(offer, 8)
+        self.assertTrue(all(isinstance(value, int) for value in (8, 9)))
+
+    def test_new_catch_trials_respect_integer_floor(self):
+        self.assertEqual(catch_trial_rewards("trivial"), (1, 10, 0, 1))
+        self.assertEqual(catch_trial_rewards("dominated"), (10, 10, None, None))
 
     def test_implemented_outcome_respects_original_choice_and_excludes_catches(self):
         choice = {
@@ -109,6 +117,10 @@ class ExperimentScheduleTests(unittest.TestCase):
         task_outcome = implemented_outcome({**choice, "chosen_option": "task", "task_reward": 20.0})
         self.assertTrue(task_outcome["task_selected"])
         self.assertEqual(task_outcome["credits_awarded"], 20.0)
+        self.assertIsInstance(task_outcome["credits_awarded"], int)
+        no_task_outcome = implemented_outcome({**choice, "alternative_reward": 7.0})
+        self.assertEqual(no_task_outcome["credits_awarded"], 7)
+        self.assertIsInstance(no_task_outcome["credits_awarded"], int)
 
 
 if __name__ == "__main__":

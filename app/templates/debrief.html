@@ -5,12 +5,12 @@
   {% if complete %}
     <p class="eyebrow">Session complete</p><h1>Thank you for taking part.</h1>
     <p class="prose">Your responses have been recorded under a random participant code. The study examines how task reward, cognitive task demand, and duration jointly relate to choices. It does not directly measure brain activity or identify a best mathematical model from this page.</p>
-    {% if outcome %}<div class="notice">Recorded outcome: {{ '%.2f'|format(outcome.credits_awarded) }} credits{% if outcome.task_selected %}, with task completed{% endif %}.</div>{% endif %}
+    {% if outcome %}<div class="notice">Recorded outcome: {% if outcome.choice.participant.experiment_version == 'variable_reward_v2' %}{{ outcome.credits_awarded|int }}{% else %}{{ '%.2f'|format(outcome.credits_awarded) }}{% endif %} credits{% if outcome.task_selected %}, with task completed{% endif %}.</div>{% endif %}
     <p class="quiet-note">Your participant code is {{ session.get('participant_id', '') }}. Contact the researcher using the details supplied with your study invitation.</p>
   {% else %}
     <p class="eyebrow">Debrief</p><h1>About this study</h1>
     <div class="prose"><p>The study asks how reward, cognitive effort, and task duration, separately and together, influence the subjective value of performing a task. N-back level is an operational measure of task demand, not a perfect measure of cognitive effort; your effort ratings provide an additional subjective measure.</p><p>Task rewards varied between conditions and stayed fixed within each condition. The study compares candidate models but does not establish a correct equation. The website records behaviour only and does not directly measure dopamine or brain activity.</p><p>You may leave a comment about your experience below. This is optional.</p></div>
-    <form method="post" class="form-stack"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label for="feedback">Optional comments</label><textarea id="feedback" name="feedback" rows="4" maxlength="4000"></textarea><button class="button button--primary" data-proceed type="submit">Submit completed session</button></form>
+    <form method="post" class="form-stack"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label for="feedback">Optional comments</label><p class="quiet-note">Please do not include your name, email address, or phone number.</p><textarea id="feedback" name="feedback" rows="4" maxlength="4000"></textarea><button class="button button--primary" data-proceed type="submit">Submit completed session</button></form>
   {% endif %}
 </section>
 {% endblock %}

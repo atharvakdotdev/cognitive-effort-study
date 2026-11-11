@@ -25,14 +25,21 @@ def upgrade_database_schema():
     """Create missing tables and add version metadata without rebuilding data tables."""
     db.create_all()
     columns = {column["name"] for column in inspect(db.engine).get_columns("participant")}
+    upgraded = False
     if "experiment_version" not in columns:
         with db.engine.begin() as connection:
             connection.exec_driver_sql(
                 "ALTER TABLE participant ADD COLUMN experiment_version "
                 "VARCHAR(32) NOT NULL DEFAULT 'fixed_reward_v1'"
             )
-        return True
-    return False
+        upgraded = True
+    with db.engine.begin() as connection:
+        connection.exec_driver_sql(
+            "UPDATE choice SET alternative_reward = "
+            "MAX(1, MIN(task_reward, ROUND(alternative_reward))) "
+            "WHERE chosen_option IS NULL AND alternative_reward IS NOT NULL"
+        )
+    return upgraded
 
 
 def create_app(test_config=None):

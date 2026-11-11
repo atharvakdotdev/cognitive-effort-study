@@ -97,6 +97,7 @@ kbd { display: inline-block; padding: 3px 8px; border: 1px solid #59615b; border
 .option-reward { margin: 30px 0 10px; color: var(--accent); font: 400 40px/1.1 var(--serif); font-variant-numeric: tabular-nums; }
 .option-reward small { color: var(--muted); font: 400 14px var(--sans); }
 .option-description { min-height: 60px; color: #cad2cc; }
+.option-emphasis { display: inline-block; padding: 1px 6px; border-radius: 3px; color: var(--accent-ink); background: var(--accent); font-weight: 700; white-space: nowrap; }
 .option-select { margin-top: auto; padding-top: 22px; color: var(--accent); font-weight: 700; }
 .choice-footnote { margin: 20px 0 0; color: var(--muted); font-size: 13px; text-align: center; }
 .outcome-summary { margin: 26px 0; padding: 20px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }

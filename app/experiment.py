@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import random
+import math
 from typing import Any
 
 from . import experiment_design as design
@@ -100,21 +101,55 @@ def build_trial_schedule(
     return dispersed
 
 
-def initial_offer(rng: random.Random, task_reward: float) -> float:
+def initial_offer(
+    rng: random.Random,
+    task_reward: float,
+    *,
+    minimum: float = design.MIN_ALTERNATIVE_REWARD,
+    integer: bool = True,
+) -> int | float:
     jitter = rng.uniform(-design.INITIAL_OFFER_JITTER, design.INITIAL_OFFER_JITTER)
-    return clamp_offer(task_reward * design.INITIAL_OFFER_PROPORTION + jitter, task_reward)
+    return clamp_offer(
+        task_reward * design.INITIAL_OFFER_PROPORTION + jitter,
+        task_reward,
+        minimum=minimum,
+        integer=integer,
+    )
 
 
-def clamp_offer(offer: float, task_reward: float) -> float:
-    bounded = min(task_reward, max(0.0, offer))
+def clamp_offer(
+    offer: float,
+    task_reward: float,
+    *,
+    minimum: float = design.MIN_ALTERNATIVE_REWARD,
+    integer: bool = True,
+) -> int | float:
+    if integer:
+        bounded = min(int(task_reward), max(int(minimum), math.floor(offer + 0.5)))
+        return int(bounded)
+    bounded = min(task_reward, max(minimum, offer))
     return round(bounded, 4)
 
 
-def adjust_offer(current_offer: float, chose_task: bool, step_index: int, task_reward: float) -> float:
+def adjust_offer(
+    current_offer: float,
+    chose_task: bool,
+    step_index: int,
+    task_reward: float,
+    *,
+    minimum: float = design.MIN_ALTERNATIVE_REWARD,
+    integer: bool = True,
+) -> int | float:
     """Move the no-task offer toward indifference after a completed choice."""
     step = design.ADAPTIVE_STEPS[min(max(step_index, 0), len(design.ADAPTIVE_STEPS) - 1)]
     direction = 1 if chose_task else -1
-    return clamp_offer(current_offer + direction * step, task_reward)
+    candidate = current_offer + direction * step
+    if integer:
+        rounded = math.floor(candidate + 0.5)
+        if rounded == int(current_offer):
+            rounded += direction
+        candidate = rounded
+    return clamp_offer(candidate, task_reward, minimum=minimum, integer=integer)
 
 
 def catch_trial_rewards(catch_type: str) -> tuple[float, float, int | None, int | None]:
@@ -122,8 +157,13 @@ def catch_trial_rewards(catch_type: str) -> tuple[float, float, int | None, int 
     if catch_type == "dominated":
         return design.CATCH_TASK_REWARD, design.CATCH_TASK_REWARD, None, None
     if catch_type == "trivial":
-        return 0.0, design.CATCH_TASK_REWARD, 0, 1
+        return design.MIN_ALTERNATIVE_REWARD, design.CATCH_TASK_REWARD, 0, 1
     raise ValueError(f"Unknown catch trial type: {catch_type}")
+
+
+def _whole_credit_value(value: float) -> int | float:
+    numeric_value = float(value)
+    return int(numeric_value) if numeric_value.is_integer() else numeric_value
 
 
 def implemented_outcome(choice: dict[str, Any]) -> dict[str, Any]:
@@ -138,12 +178,10 @@ def implemented_outcome(choice: dict[str, Any]) -> dict[str, Any]:
         "condition_id": choice["condition_id"],
         "chosen_option": chosen_option,
         "task_selected": chosen_option == "task",
-        "credits_awarded": (
-            float(choice["task_reward"])
-            if chosen_option == "task"
-            else float(choice["alternative_reward"])
+        "credits_awarded": _whole_credit_value(
+            choice["task_reward"] if chosen_option == "task" else choice["alternative_reward"]
         ),
-        "task_reward": float(choice["task_reward"]),
+        "task_reward": _whole_credit_value(choice["task_reward"]),
         "level": choice["level"],
         "duration": choice["duration"],
     }

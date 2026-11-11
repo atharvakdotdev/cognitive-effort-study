@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 
 from flask_login import UserMixin
+from sqlalchemy import Float, TypeDecorator
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from . import db
@@ -10,6 +11,17 @@ from . import db
 
 def utc_now():
     return datetime.now(timezone.utc)
+
+
+class RewardValue(TypeDecorator):
+    impl = Float
+    cache_ok = True
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
+        numeric_value = float(value)
+        return int(numeric_value) if numeric_value.is_integer() else numeric_value
 
 
 class Researcher(UserMixin, db.Model):
@@ -79,8 +91,8 @@ class Choice(db.Model):
     condition_id = db.Column(db.String(24), nullable=False)
     n_back_level = db.Column(db.Integer)
     duration_minutes = db.Column(db.Integer)
-    alternative_reward = db.Column(db.Float)
-    task_reward = db.Column(db.Float, nullable=False)
+    alternative_reward = db.Column(RewardValue())
+    task_reward = db.Column(RewardValue(), nullable=False)
     chosen_option = db.Column(db.String(16))
     task_selected = db.Column(db.Boolean)
     no_task_position = db.Column(db.String(8), nullable=False)
@@ -156,7 +168,7 @@ class ImplementedOutcome(db.Model):
     choice_id = db.Column(db.Integer, db.ForeignKey("choice.id"), nullable=False, unique=True)
     chosen_option = db.Column(db.String(16), nullable=False)
     task_selected = db.Column(db.Boolean, nullable=False)
-    credits_awarded = db.Column(db.Float, nullable=False)
+    credits_awarded = db.Column(RewardValue(), nullable=False)
     task_completed = db.Column(db.Boolean, nullable=False, default=False)
     selected_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
     task_completed_at = db.Column(db.DateTime(timezone=True))

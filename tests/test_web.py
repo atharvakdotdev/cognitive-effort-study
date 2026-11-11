@@ -52,6 +52,46 @@ class WebWorkflowTests(unittest.TestCase):
         participant = Participant(participant_id="P-LEGACY", random_seed=123)
         db.session.add(participant)
         db.session.commit()
+        db.session.add_all((
+            Choice(
+                participant_id=participant.participant_id,
+                trial_number=1,
+                condition_id="E1_T1",
+                n_back_level=1,
+                duration_minutes=1,
+                alternative_reward=2.5,
+                task_reward=10,
+                no_task_position="left",
+                task_position="right",
+            ),
+            Choice(
+                participant_id=participant.participant_id,
+                trial_number=2,
+                condition_id="catch_trivial",
+                n_back_level=0,
+                duration_minutes=1,
+                alternative_reward=0,
+                task_reward=10,
+                no_task_position="right",
+                task_position="left",
+                is_catch=True,
+                catch_type="trivial",
+            ),
+            Choice(
+                participant_id=participant.participant_id,
+                trial_number=3,
+                condition_id="E1_T2",
+                n_back_level=1,
+                duration_minutes=2,
+                alternative_reward=2.5,
+                task_reward=10,
+                chosen_option="no_task",
+                task_selected=False,
+                no_task_position="left",
+                task_position="right",
+            ),
+        ))
+        db.session.commit()
         db.session.execute(text("ALTER TABLE participant DROP COLUMN experiment_version"))
         db.session.commit()
         db.session.remove()
@@ -63,6 +103,18 @@ class WebWorkflowTests(unittest.TestCase):
             "FROM participant WHERE participant_id = 'P-LEGACY'"
         )).one()
         self.assertEqual(tuple(record), ("P-LEGACY", 123, "fixed_reward_v1"))
+        pending_main = db.session.execute(text(
+            "SELECT alternative_reward FROM choice WHERE participant_id = 'P-LEGACY' AND trial_number = 1"
+        )).scalar_one()
+        pending_catch = db.session.execute(text(
+            "SELECT alternative_reward FROM choice WHERE participant_id = 'P-LEGACY' AND trial_number = 2"
+        )).scalar_one()
+        completed = db.session.execute(text(
+            "SELECT alternative_reward FROM choice WHERE participant_id = 'P-LEGACY' AND trial_number = 3"
+        )).scalar_one()
+        self.assertEqual(pending_main, 3)
+        self.assertEqual(pending_catch, 1)
+        self.assertEqual(completed, 2.5)
         self.assertFalse(upgrade_database_schema())
 
     def test_existing_fixed_reward_participant_keeps_legacy_schedule(self):
@@ -81,6 +133,9 @@ class WebWorkflowTests(unittest.TestCase):
         self.assertEqual(len(choices), 86)
         self.assertEqual({choice.task_reward for choice in choices}, {10.0})
         self.assertTrue(all(choice.condition_id.startswith("E") for choice in main))
+        assigned_offers = [choice.alternative_reward for choice in choices if choice.alternative_reward is not None]
+        self.assertTrue(all(offer >= 1 for offer in assigned_offers))
+        self.assertTrue(all(float(offer).is_integer() for offer in assigned_offers))
 
     def test_demo_data_uses_all_reward_levels_and_reward_bounded_offers(self):
         self.assertEqual(seed_demo_data(), 3)
@@ -88,7 +143,8 @@ class WebWorkflowTests(unittest.TestCase):
         self.assertEqual(len(choices), 3 * 246)
         main = [choice for choice in choices if not choice.is_catch]
         self.assertEqual({choice.task_reward for choice in main}, set(design.TASK_REWARDS))
-        self.assertTrue(all(0 <= choice.alternative_reward <= choice.task_reward for choice in main))
+        self.assertTrue(all(1 <= choice.alternative_reward <= choice.task_reward for choice in main))
+        self.assertTrue(all(float(choice.alternative_reward).is_integer() for choice in main))
 
     def test_underage_consent_is_recorded_and_terminated(self):
         welcome = self.client.get("/")
@@ -103,6 +159,25 @@ class WebWorkflowTests(unittest.TestCase):
         self.assertEqual(participant.status, "excluded")
         with self.client.session_transaction() as browser_session:
             self.assertNotIn("participant_id", browser_session)
+
+    def test_consent_discloses_rewards_voluntariness_privacy_retention_and_contact(self):
+        response = self.client.get("/consent")
+        self.assertEqual(response.status_code, 200)
+        for disclosure in (
+            "Make 246 reward choices (240 main choices and 6 catch trials)",
+            "Credits are just points used in this experiment",
+            "Your decision will not affect your friendship with the researcher",
+            "use a username that does not reveal your identity",
+            "Passwords are stored securely as hashes",
+            "Your IP address is not stored in the study database",
+            "Only the researcher, Atharva Dixit, can access the raw study data",
+            "Data will be deleted 30 days after your final submission",
+            "Usernames are excluded from research exports",
+            "The memory tasks may cause some mental fatigue or frustration",
+            "atharvak.dixit@gmail.com",
+            "No ethics approval is claimed",
+        ):
+            self.assertIn(disclosure.encode(), response.data)
 
     def test_active_participant_session_persists_across_refresh(self):
         response = self.client.post("/consent", data={
@@ -220,7 +295,10 @@ class WebWorkflowTests(unittest.TestCase):
 
         shown = self.client.get("/choice")
         self.assertEqual(shown.status_code, 200)
-        self.assertIn(f"{first_main.task_reward:.2f}".encode(), shown.data)
+        self.assertIn(f"{int(first_main.task_reward)}".encode(), shown.data)
+        self.assertIn(b'class="option-emphasis"', shown.data)
+        self.assertIn(f'{first_main.n_back_level}-back'.encode(), shown.data)
+        self.assertIn(f'{first_main.duration_minutes} minute'.encode(), shown.data)
         self.client.post(f"/choice/{first_main.trial_number}", data={
             "chosen_option": "task", "response_time_ms": "900"
         })
@@ -432,7 +510,10 @@ class WebWorkflowTests(unittest.TestCase):
         db.session.add(researcher)
         db.session.commit()
         self.client.post("/researcher/login", data={"username": "researcher", "password": "not-a-production-password"})
-        self.assertEqual(self.client.get("/researcher/analysis").status_code, 200)
+        analysis_response = self.client.get("/researcher/analysis")
+        self.assertEqual(analysis_response.status_code, 200)
+        self.assertIn(b"10 credits", analysis_response.data)
+        self.assertNotIn(b"10.0 credits", analysis_response.data)
 
         exports = {
             "/researcher/export/participants.csv": ("session_creation_time", "task_reward_r"),
@@ -451,6 +532,9 @@ class WebWorkflowTests(unittest.TestCase):
         exported_choices = self.client.get("/researcher/export/choices.csv").get_data(as_text=True)
         self.assertIn("P-REAL", exported_choices)
         self.assertNotIn("SYNTHETIC-001", exported_choices)
+        exported_row = next(row for row in csv.DictReader(io.StringIO(exported_choices.lstrip("\ufeff"))) if row["participant_id"] == "P-REAL")
+        self.assertEqual(exported_row["alternative_reward_x"], "5")
+        self.assertEqual(exported_row["task_reward_r"], "10")
 
 
 if __name__ == "__main__":

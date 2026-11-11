@@ -292,7 +292,7 @@ def export_participants():
 def export_choices():
     rows = Choice.query.filter(Choice.participant_id.in_(_real_participant_ids())).order_by(Choice.participant_id, Choice.trial_number).all()
     headers = ["participant_id", "trial_number", "condition_id", "n_back_level", "duration_minutes", "alternative_reward_x", "task_reward_r", "chosen_option", "task_selected", "no_task_position", "task_position", "is_catch_trial", "catch_type", "trial_timestamp", "response_time_ms"]
-    values = ([row.participant_id, row.trial_number, row.condition_id, row.n_back_level, row.duration_minutes, row.alternative_reward, row.task_reward, row.chosen_option, row.task_selected, row.no_task_position, row.task_position, row.is_catch, row.catch_type or "", _iso(row.timestamp), row.response_time_ms] for row in rows)
+    values = ([row.participant_id, row.trial_number, row.condition_id, row.n_back_level, row.duration_minutes, int(row.alternative_reward) if row.alternative_reward is not None and row.participant.experiment_version == "variable_reward_v2" else row.alternative_reward, int(row.task_reward), row.chosen_option, row.task_selected, row.no_task_position, row.task_position, row.is_catch, row.catch_type or "", _iso(row.timestamp), row.response_time_ms] for row in rows)
     return _csv_download("choices.csv", headers, values)
 
 
@@ -303,7 +303,7 @@ def export_nback_responses():
         Participant.is_test.is_(False)
     ).order_by(NBackResponse.participant_id, NBackResponse.task_run_id, NBackResponse.trial_index).all()
     outcome_rewards = {
-        outcome.participant_id: outcome.choice.task_reward
+        outcome.participant_id: int(outcome.choice.task_reward)
         for outcome in ImplementedOutcome.query.join(Participant).filter(Participant.is_test.is_(False)).all()
     }
     headers = ["participant_id", "run_type", "task_reward_r", "task_level", "trial_index", "stimulus", "correct_response_target", "actual_response", "accuracy", "reaction_time_ms", "response_timestamp", "actual_task_duration_seconds"]
@@ -318,7 +318,7 @@ def export_effort_ratings():
         EffortRating.participant_id, EffortRating.timestamp
     ).all()
     outcome_rewards = {
-        outcome.participant_id: outcome.choice.task_reward
+        outcome.participant_id: int(outcome.choice.task_reward)
         for outcome in ImplementedOutcome.query.join(Participant).filter(Participant.is_test.is_(False)).all()
     }
     headers = ["participant_id", "task_reward_r", "n_back_level", "rating_type", "rating_0_100", "task_run_type", "timestamp"]
@@ -333,5 +333,5 @@ def export_implemented_outcomes():
         ImplementedOutcome.participant_id
     ).all()
     headers = ["participant_id", "selected_trial_number", "condition_id", "task_reward_r", "n_back_level", "duration_minutes", "chosen_option", "task_selected", "credits_awarded", "task_completed", "selected_at", "task_completed_at"]
-    values = ([row.participant_id, row.choice.trial_number, row.choice.condition_id, row.choice.task_reward, row.choice.n_back_level, row.choice.duration_minutes, row.chosen_option, row.task_selected, row.credits_awarded, row.task_completed, _iso(row.selected_at), _iso(row.task_completed_at)] for row in rows)
+    values = ([row.participant_id, row.choice.trial_number, row.choice.condition_id, int(row.choice.task_reward), row.choice.n_back_level, row.choice.duration_minutes, row.chosen_option, row.task_selected, int(row.credits_awarded) if row.choice.participant.experiment_version == "variable_reward_v2" else row.credits_awarded, row.task_completed, _iso(row.selected_at), _iso(row.task_completed_at)] for row in rows)
     return _csv_download("implemented_outcomes.csv", headers, values)

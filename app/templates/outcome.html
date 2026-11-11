@@ -5,11 +5,11 @@
   <p class="eyebrow">Randomly selected choice · Choice {{ outcome.choice.trial_number }}</p>
   <h1>This choice determines your outcome</h1>
   {% if outcome.task_selected %}
-    <div class="outcome-summary"><span>Your selected option</span><strong>Complete the cognitive task</strong><p>{{ outcome.choice.n_back_level }}-back for {{ outcome.choice.duration_minutes }} minute{{ '' if outcome.choice.duration_minutes == 1 else 's' }}</p><b>{{ '%.2f'|format(outcome.choice.task_reward) }} credits after completion</b></div>
-    <p class="prose">You selected the task on this choice. You cannot change that response. The task must be completed to receive {{ '%.2f'|format(outcome.choice.task_reward) }} credits.</p>
+    <div class="outcome-summary"><span>Your selected option</span><strong>Complete the cognitive task</strong><p>{{ outcome.choice.n_back_level }}-back for {{ outcome.choice.duration_minutes }} minute{{ '' if outcome.choice.duration_minutes == 1 else 's' }}</p><b>{{ outcome.choice.task_reward|int }} credits after completion</b></div>
+    <p class="prose">You selected the task on this choice. You cannot change that response. The task must be completed to receive {{ outcome.choice.task_reward|int }} credits.</p>
     <form method="post" action="{{ url_for('participant.outcome_continue') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button button--primary" data-proceed type="submit">Continue to selected task</button></form>
   {% else %}
-    <div class="outcome-summary"><span>Your selected option</span><strong>No task</strong><p>No cognitive task is required for this outcome.</p><b>{{ '%.2f'|format(outcome.credits_awarded) }} credits</b></div>
+    <div class="outcome-summary"><span>Your selected option</span><strong>No task</strong><p>No cognitive task is required for this outcome.</p><b>{% if outcome.choice.participant.experiment_version == 'variable_reward_v2' %}{{ outcome.credits_awarded|int }}{% else %}{{ '%.2f'|format(outcome.credits_awarded) }}{% endif %} credits</b></div>
     <form method="post" action="{{ url_for('participant.outcome_continue') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button button--primary" data-proceed type="submit">Continue</button></form>
   {% endif %}
 </section>
