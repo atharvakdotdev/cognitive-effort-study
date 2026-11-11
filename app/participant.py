@@ -1,5 +1,6 @@
 """Consent-led participant workflow and server-validated experiment endpoints."""
 
+import hashlib
 import json
 import random
 import secrets
@@ -22,6 +23,7 @@ from .experiment import (
 from .models import (
     BrowserEvent,
     Choice,
+    ConsentSubmission,
     DebriefResponse,
     EffortRating,
     ImplementedOutcome,
@@ -110,6 +112,20 @@ def _redirect_for_stage(participant):
     if stage == "excluded":
         return render_template("terminated.html", reason=participant.exclusion_reason)
     return render_template("debrief.html", complete=True)
+
+
+def _consent_token_hash(token):
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _prior_consent_response(token_hash):
+    submission = db.session.get(ConsentSubmission, token_hash)
+    if submission is None:
+        return None
+    participant = db.session.get(Participant, submission.participant_id)
+    if participant is None:
+        abort(409)
+    return _redirect_for_stage(participant)
 
 
 def _progress_stage():
@@ -302,7 +318,19 @@ def consent():
     researcher_debug = _is_researcher_debug(participant)
     if participant and not researcher_debug:
         return _redirect_for_stage(participant)
+    consent_token = session.get("consent_submission_token")
+    if not researcher_debug and consent_token:
+        token_hash = _consent_token_hash(consent_token)
+        prior_response = _prior_consent_response(token_hash)
+        if prior_response is not None:
+            return prior_response
     if request.method == "POST":
+        token_hash = None
+        if not researcher_debug:
+            submitted_token = request.form.get("consent_submission_token", "")
+            if not consent_token or not secrets.compare_digest(submitted_token, consent_token):
+                abort(400)
+            token_hash = _consent_token_hash(consent_token)
         age_eligible = request.form.get("age_confirmed") == "yes"
         has_read = request.form.get("read_confirmed") == "yes"
         voluntary = request.form.get("agree_confirmed") == "yes"
@@ -334,7 +362,17 @@ def consent():
                 random.Random(seed).sample(list(design.ENABLED_N_BACK_LEVELS), len(design.ENABLED_N_BACK_LEVELS))
             )
         db.session.add(participant)
-        db.session.commit()
+        if token_hash:
+            db.session.add(ConsentSubmission(token_hash=token_hash, participant_id=participant.participant_id))
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            if token_hash:
+                prior_response = _prior_consent_response(token_hash)
+                if prior_response is not None:
+                    return prior_response
+            raise
         if participant.status == "in_progress" or researcher_debug:
             session["participant_id"] = participant.participant_id
             session.permanent = True
@@ -345,7 +383,14 @@ def consent():
         else:
             session.pop("participant_id", None)
         return _redirect_for_stage(participant)
-    return render_template("consent.html", progress_stage="consent")
+    if not researcher_debug and not consent_token:
+        consent_token = secrets.token_urlsafe(32)
+        session["consent_submission_token"] = consent_token
+    return render_template(
+        "consent.html",
+        progress_stage="consent",
+        consent_token=consent_token,
+    )
 
 
 @participant_bp.get("/resume")

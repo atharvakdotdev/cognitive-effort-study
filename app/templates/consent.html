@@ -39,6 +39,7 @@
   <h2>Consent</h2>
   <form method="post" class="form-stack">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="consent_submission_token" value="{{ consent_token or '' }}">
     <fieldset class="choice-fieldset">
       <legend>Are you at least 18 years old?</legend>
       <label><input type="radio" name="age_confirmed" value="yes" required> Yes</label>

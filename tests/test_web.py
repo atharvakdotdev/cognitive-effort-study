@@ -48,6 +48,16 @@ class WebWorkflowTests(unittest.TestCase):
             _create_choice_schedule(participant)
         return participant
 
+    def consent_token(self):
+        response = self.client.get("/consent")
+        self.assertEqual(response.status_code, 200)
+        with self.client.session_transaction() as browser_session:
+            return browser_session["consent_submission_token"]
+
+    def post_consent(self, data, **kwargs):
+        data = {**data, "consent_submission_token": self.consent_token()}
+        return self.client.post("/consent", data=data, **kwargs)
+
     def test_additive_schema_upgrade_preserves_and_marks_existing_participant(self):
         participant = Participant(participant_id="P-LEGACY", random_seed=123)
         db.session.add(participant)
@@ -150,7 +160,7 @@ class WebWorkflowTests(unittest.TestCase):
         welcome = self.client.get("/")
         self.assertIn(b"246", welcome.data)
         self.assertNotIn("25–30 min".encode(), welcome.data)
-        response = self.client.post("/consent", data={
+        response = self.post_consent({
             "age_confirmed": "no", "read_confirmed": "yes", "agree_confirmed": "yes"
         })
         self.assertEqual(response.status_code, 200)
@@ -180,7 +190,7 @@ class WebWorkflowTests(unittest.TestCase):
             self.assertIn(disclosure.encode(), response.data)
 
     def test_active_participant_session_persists_across_refresh(self):
-        response = self.client.post("/consent", data={
+        response = self.post_consent({
             "age_confirmed": "yes", "read_confirmed": "yes", "agree_confirmed": "yes"
         })
         self.assertEqual(response.status_code, 302)
@@ -194,7 +204,7 @@ class WebWorkflowTests(unittest.TestCase):
 
     def test_test_mode_sessions_are_marked_and_visibly_labelled(self):
         self.app.config["EXPERIMENT_TEST_MODE"] = True
-        response = self.client.post("/consent", data={
+        response = self.post_consent({
             "age_confirmed": "yes", "read_confirmed": "yes", "agree_confirmed": "yes"
         }, follow_redirects=True)
         participant = Participant.query.one()
@@ -413,6 +423,31 @@ class WebWorkflowTests(unittest.TestCase):
         self.assertIn("/researcher/login", response.location)
         self.assertEqual(self.client.get("/researcher/login").status_code, 200)
 
+    def test_authentication_routes_do_not_apply_rate_limits(self):
+        for path in ("/account/login", "/researcher/login"):
+            for _ in range(12):
+                response = self.client.post(path, data={"username": "unknown", "password": "wrong"})
+                self.assertNotEqual(response.status_code, 429)
+
+    def test_consent_retries_are_idempotent(self):
+        token = self.consent_token()
+        data = {
+            "age_confirmed": "no",
+            "read_confirmed": "yes",
+            "agree_confirmed": "yes",
+            "consent_submission_token": token,
+        }
+        for _ in range(10):
+            self.assertEqual(self.client.post("/consent", data=data).status_code, 200)
+        self.assertEqual(Participant.query.count(), 1)
+
+    def test_production_requires_secure_cookies(self):
+        with self.assertRaisesRegex(RuntimeError, "COOKIE_SECURE=1"):
+            create_app({
+                "APP_ENV": "production",
+                "SESSION_COOKIE_SECURE": False,
+            })
+
     def test_user_account_resumes_its_session_and_cannot_open_researcher_tools(self):
         self.assertEqual(self.client.get("/account/register").status_code, 200)
         self.assertEqual(self.client.get("/account/login").status_code, 200)
@@ -422,7 +457,7 @@ class WebWorkflowTests(unittest.TestCase):
         })
         self.assertEqual(response.status_code, 302)
         self.assertEqual(self.client.get("/researcher/").status_code, 403)
-        self.client.post("/consent", data={
+        self.post_consent({
             "age_confirmed": "yes", "read_confirmed": "yes", "agree_confirmed": "yes"
         })
         account = UserAccount.query.one()

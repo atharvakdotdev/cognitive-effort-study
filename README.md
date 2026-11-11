@@ -68,7 +68,7 @@ flask --app run.py init-db
 unset ADMIN_PASSWORD
 ```
 
-Run the local server with `python run.py`, then open `http://127.0.0.1:5000/`. Researcher tools are at `/researcher/login`. Participants can optionally create a pseudonymous user account at `/account/register`; the account is linked to that user's participant code to support resuming, while usernames are excluded from research exports. The existing anonymous participation path remains available. The default SQLite file is `instance/experiment.sqlite3`. Set `DATABASE_URL` to an absolute SQLite URI to select another persistent location. Use a persistent `SECRET_KEY` across restarts; set `COOKIE_SECURE=1` when serving over HTTPS.
+Run the local server with `python run.py`, then open `http://127.0.0.1:5000/`. Researcher tools are at `/researcher/login`. Participants can optionally create a pseudonymous user account at `/account/register`; the account is linked to that user's participant code to support resuming, while usernames are excluded from research exports. The existing anonymous participation path remains available. The default SQLite file is `instance/experiment.sqlite3`. Set `DATABASE_URL` to an absolute SQLite URI to select another persistent location. Use a persistent `SECRET_KEY` across restarts; set `COOKIE_SECURE=1` when serving over HTTPS. Set `APP_ENV=production` in deployment to require secure cookies.
 
 Researchers can use **Survey debug** from the dashboard to create a synthetic test session at any survey step. While in that session, the debug toolbar can jump between steps and open the detailed diagnostic record. These sessions are marked `is_test=true` and excluded from research exports and descriptive analysis. Researcher credentials remain separate from participant user accounts.
 
@@ -130,6 +130,7 @@ Researcher downloads are separate files: `participants.csv`, `choices.csv`, `nba
    if project_home not in sys.path:
        sys.path.insert(0, project_home)
 
+   os.environ.setdefault("APP_ENV", "production")
    os.environ.setdefault("SECRET_KEY", "replace-with-a-long-random-secret")
    os.environ.setdefault(
        "DATABASE_URL",
@@ -141,7 +142,7 @@ Researcher downloads are separate files: `participants.csv`, `choices.csv`, `nba
    ```
 
    Do not add `app.run()` to the WSGI file. It imports the Flask object and uses the persistent database under the project `instance/` folder.
-6. Configure a long random `SECRET_KEY` and the absolute `DATABASE_URL` in the WSGI environment. Keep the same values for the command-line initialization below. Do not commit credentials or secrets.
+6. Configure a long random `SECRET_KEY`, the absolute `DATABASE_URL`, and `COOKIE_SECURE=1` in the WSGI environment. Keep the same database and secret values for the command-line initialization below. Do not commit credentials or secrets.
 7. Initialize the schema and researcher account explicitly from a Bash console. Use the same database URI and secret as in WSGI. Enter the password at the prompt rather than in the command line:
 
    ```bash
@@ -155,7 +156,7 @@ Researcher downloads are separate files: `participants.csv`, `choices.csv`, `nba
    unset ADMIN_PASSWORD
    ```
 
-   The password is stored as a Werkzeug password hash. `init-db` creates missing tables, safely adds the experiment-version column to an existing SQLite database without deleting records, and creates the researcher account only if that username does not already exist. Existing participant sessions remain on the fixed-10-credit design.
+   The password is stored as a Werkzeug password hash. `init-db` creates missing tables, including the consent-submission idempotency table, safely adds the experiment-version column to an existing SQLite database without deleting records, and creates the researcher account only if that username does not already exist. Existing participant sessions remain on the fixed-10-credit design.
 8. Confirm the database path points to the project `instance/experiment.sqlite3`, not `/tmp` or another ephemeral directory. Ensure the `instance/` directory is writable by the web app.
 9. Click **Reload** in the PythonAnywhere Web tab.
 10. Verify the participant welcome page at `/` and researcher sign-in at `/researcher/login`. Create a test session and verify its saved records from the authenticated dashboard before recruitment.

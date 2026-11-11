@@ -11,6 +11,7 @@ INSTANCE_DIR = BASE_DIR / "instance"
 
 
 class Config:
+    APP_ENV = os.environ.get("APP_ENV", "development").lower()
     SECRET_KEY = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         "DATABASE_URL", f"sqlite:///{(INSTANCE_DIR / 'experiment.sqlite3').as_posix()}"
