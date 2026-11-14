@@ -7,6 +7,7 @@
   {% if rating_type == 'practice' %}
     <p class="lede">You completed the {{ level }}-back practice block. Accuracy: {{ accuracy }}%.</p>
     <p class="prose">How mentally demanding did you find that task?</p>
+    <p class="quiet-note"><a href="{{ url_for('participant.free_practice', level=level) }}">Practise this level again</a></p>
   {% elif rating_type == 'expected' %}
     <p class="lede">Your selected outcome did not require a task. How mentally demanding do you expect the selected {{ level }}-back task would have been?</p>
   {% else %}

@@ -445,8 +445,18 @@ class WebWorkflowTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "COOKIE_SECURE=1"):
             create_app({
                 "APP_ENV": "production",
+                "SECRET_KEY": "production-test-secret",
                 "SESSION_COOKIE_SECURE": False,
             })
+
+    def test_production_requires_explicit_persistent_secret_key(self):
+        with self.assertRaisesRegex(RuntimeError, "persistent SECRET_KEY"):
+            create_app({
+                "APP_ENV": "production",
+                "SECRET_KEY": None,
+                "SESSION_COOKIE_SECURE": True,
+            })
+
 
     def test_user_account_resumes_its_session_and_cannot_open_researcher_tools(self):
         self.assertEqual(self.client.get("/account/register").status_code, 200)

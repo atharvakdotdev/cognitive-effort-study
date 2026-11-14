@@ -49,6 +49,8 @@ def create_app(test_config=None):
     if test_config:
         application.config.update(test_config)
     if application.config["APP_ENV"] == "production":
+        if not application.config["SECRET_KEY"]:
+            raise RuntimeError("Set a persistent SECRET_KEY before starting in production.")
         if not application.config["SESSION_COOKIE_SECURE"]:
             raise RuntimeError("Set COOKIE_SECURE=1 before starting in production.")
     if not os.environ.get("SECRET_KEY") and not application.config.get("TESTING"):

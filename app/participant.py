@@ -39,6 +39,7 @@ from .nback import generate_sequence, validate_responses
 participant_bp = Blueprint("participant", __name__)
 
 QUIZ_ANSWERS = {"q1": "one", "q2": "both", "q3": "withdraw", "q4": "adult"}
+FREE_PRACTICE_STAGES = {"instructions", "quiz", "practice", "practice_rating"}
 STAGE_ENDPOINTS = {
     "consent": "consent",
     "instructions": "instructions",
@@ -292,10 +293,20 @@ def _record_task_responses(participant, task, payload, expected_duration):
 
 
 def _task_context(task, duration_seconds, next_url):
+    return _task_context_for(
+        task.task_level,
+        task.run_type,
+        _json_value(task.sequence_json, []),
+        duration_seconds,
+        next_url,
+    )
+
+
+def _task_context_for(level, run_type, sequence, duration_seconds, next_url):
     return {
-        "task_level": task.task_level,
-        "run_type": task.run_type,
-        "sequence": _json_value(task.sequence_json, []),
+        "task_level": level,
+        "run_type": run_type,
+        "sequence": sequence,
         "duration_seconds": duration_seconds,
         "stimulus_duration_ms": design.STIMULUS_DURATION_MS,
         "isi_ms": design.INTER_STIMULUS_INTERVAL_MS,
@@ -358,9 +369,7 @@ def consent():
         else:
             participant.current_stage = "instructions"
             participant.quality_flags = json.dumps(["incomplete_experiment"])
-            participant.practice_order = json.dumps(
-                random.Random(seed).sample(list(design.ENABLED_N_BACK_LEVELS), len(design.ENABLED_N_BACK_LEVELS))
-            )
+            participant.practice_order = json.dumps([0, 1, 2, 3])
         db.session.add(participant)
         if token_hash:
             db.session.add(ConsentSubmission(token_hash=token_hash, participant_id=participant.participant_id))
@@ -435,20 +444,56 @@ def quiz():
                 passed=passed,
             )
         )
-        if passed:
-            participant.current_stage = "practice"
-        elif attempt_number >= 2:
-            participant.status = "excluded"
-            participant.current_stage = "excluded"
-            participant.exclusion_reason = "failed_comprehension_quiz"
-            add_flag(participant, "failed_comprehension_quiz")
+        participant.current_stage = "practice"
         db.session.commit()
-        if passed:
-            return redirect(url_for("participant.resume"))
-        if attempt_number >= 2:
-            return render_template("terminated.html", reason=participant.exclusion_reason)
-        flash("One or more answers were incorrect. Review the explanation and try once more.", "warning")
-    return render_template("quiz.html", progress_stage=participant.current_stage, retry=participant.quiz_attempts > 0)
+        if not passed:
+            flash(
+                "Some answers were incorrect, but this check does not affect participation. "
+                "Correct answers: one randomly selected choice; either displayed reward; "
+                "withdraw before final submission; participants must be 18 or older.",
+                "warning",
+            )
+        return redirect(url_for("participant.resume"))
+    return render_template("quiz.html", progress_stage=participant.current_stage)
+
+
+@participant_bp.get("/practice/free/<int:level>")
+def free_practice(level):
+    participant = require_participant()
+    if not participant:
+        return redirect(url_for("participant.welcome"))
+    if participant.current_stage not in FREE_PRACTICE_STAGES:
+        return _redirect_for_stage(participant)
+    if level not in design.ENABLED_N_BACK_LEVELS:
+        abort(404)
+
+    duration = design.PRACTICE_DURATION_SECONDS
+    interval = design.STIMULUS_DURATION_MS + design.INTER_STIMULUS_INTERVAL_MS
+    trial_count = max(1, round(duration * 1000 / interval))
+    sequence = generate_sequence(level, trial_count, random.Random(secrets.randbits(32)))
+    return render_template(
+        "task.html",
+        progress_stage=participant.current_stage,
+        task=_task_context_for(
+            level,
+            "free_practice",
+            sequence,
+            duration,
+            url_for("participant.free_practice_complete", level=level),
+        ),
+        heading=f"{level}-back free practice",
+        task_description="Practise at your own pace. These responses are not recorded or used in the study.",
+    )
+
+
+@participant_bp.post("/practice/free/<int:level>/complete")
+def free_practice_complete(level):
+    participant = require_participant()
+    if not participant or participant.current_stage not in FREE_PRACTICE_STAGES:
+        return jsonify(error="Free practice is not available at this stage."), 409
+    if level not in design.ENABLED_N_BACK_LEVELS:
+        abort(404)
+    return jsonify(next_url=url_for("participant.free_practice", level=level))
 
 
 @participant_bp.get("/practice/<int:level>")
@@ -474,7 +519,7 @@ def practice(level):
         progress_stage=participant.current_stage,
         task=_task_context(task, duration, url_for("participant.practice_complete", level=level)),
         heading=f"{level}-back practice",
-        task_description="Respond to each letter using the two keys shown below.",
+        task_description="Respond to each letter using the on-screen buttons or keyboard shortcuts.",
     )
 
 

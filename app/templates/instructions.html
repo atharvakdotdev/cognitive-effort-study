@@ -5,12 +5,31 @@
   <p class="eyebrow">What to expect</p>
   <h1>Your choices matter</h1>
   <div class="instruction-grid">
-    <article><span class="step-number">01</span><h2>Practise</h2><p>Remember letters using four N-back rules. Use the spacebar for a match and F for no match. Rate the mental demand after each practice block.</p></article>
+    <article><span class="step-number">01</span><h2>Practise</h2><p>Remember letters using four N-back rules. Press Space for a match and F for no match, or tap the on-screen response buttons on a touch screen. Rate the mental demand after each practice block.</p></article>
     <article><span class="step-number">02</span><h2>Choose</h2><p>On each choice, compare the displayed credits without a task with the displayed task reward after a cognitive task. The task reward stays the same across five choices in that condition; the no-task reward may change.</p></article>
     <article><span class="step-number">03</span><h2>Implement</h2><p>After your choices, the computer randomly selects one non-control choice. If you chose the task on that choice, you will complete its exact task and duration.</p></article>
   </div>
+  <section class="nback-video" aria-labelledby="nback-video-title">
+    <h2 id="nback-video-title">How the N-back task works</h2>
+    <div class="nback-video-frame">
+      <iframe src="https://www.youtube-nocookie.com/embed/hm7eiW2OBsY" title="How the N-back task works" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+    </div>
+  </section>
+  <section class="tutorial-example" aria-labelledby="tutorial-title">
+    <div>
+      <p class="eyebrow">Quick example</p>
+      <h2 id="tutorial-title">0-back: match X</h2>
+      <p class="quiet-note">Watch a short round. B is no match, X is a match, and D is no match.</p>
+    </div>
+    <div class="tutorial-display" aria-live="polite" aria-atomic="true">
+      <span id="tutorial-letter" class="tutorial-letter">B</span>
+      <span id="tutorial-response" class="tutorial-response">No match</span>
+    </div>
+    <button id="tutorial-replay" class="button" type="button">Play example</button>
+  </section>
+  <p class="free-practice-link"><a class="button" href="{{ url_for('participant.free_practice', level=0) }}">Try free 0-back practice</a></p>
   <div class="notice"><strong>There are real consequences.</strong> One of your 240 main choices is selected at random; control checks are never selected. Credits are experimental points with no monetary value and cannot be exchanged for money or other benefits.</div>
-  <div class="prose nback-rules"><p>For each letter, press <kbd>Space</kbd> when it matches the rule and <kbd>F</kbd> when it does not. The rules are:</p><ul><li><strong>0-back:</strong> match the letter X.</li><li><strong>1-back:</strong> match the letter shown one position earlier.</li><li><strong>2-back:</strong> match the letter shown two positions earlier.</li><li><strong>3-back:</strong> match the letter shown three positions earlier.</li></ul><p>Each letter appears for 500 milliseconds, followed by a 2,000-millisecond blank interval. Use a physical keyboard and keep the browser tab open.</p></div>
+  <div class="prose nback-rules"><p>For each letter, choose Match when it follows the rule and No match when it does not. You can tap the on-screen buttons or use <kbd>Space</kbd> for Match and <kbd>F</kbd> for No match. The rules are:</p><ul><li><strong>0-back:</strong> match the letter X.</li><li><strong>1-back:</strong> match the letter shown one position earlier.</li><li><strong>2-back:</strong> match the letter shown two positions earlier.</li><li><strong>3-back:</strong> match the letter shown three positions earlier.</li></ul><p>Each letter appears for 500 milliseconds, followed by a 2,000-millisecond blank interval. Keep the browser tab open.</p></div>
   <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button button--primary" data-proceed type="submit">Continue to comprehension check</button></form>
 </section>
 {% endblock %}

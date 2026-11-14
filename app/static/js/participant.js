@@ -1,15 +1,5 @@
 (() => {
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
-  const deviceWarning = document.getElementById('device-warning');
-  const mobilePattern = /Android|iPhone|iPad|iPod|Mobile|Tablet/i;
-  const coarseSmallScreen = matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 1000;
-  const unsupportedDevice = mobilePattern.test(navigator.userAgent) || coarseSmallScreen;
-
-  if (unsupportedDevice && deviceWarning) {
-    deviceWarning.hidden = false;
-    document.querySelectorAll('[data-proceed]').forEach((control) => { control.disabled = true; });
-  }
-
   if (document.body.dataset.trackFocus === 'true') {
     let visibilityWasHidden = false;
     const record = (eventType) => {
@@ -34,6 +24,39 @@
     rating.addEventListener('input', () => { ratingValue.value = rating.value; });
   }
 
+  const tutorialReplay = document.getElementById('tutorial-replay');
+  if (tutorialReplay) {
+    const tutorialSteps = [
+      { letter: 'B', response: 'No match' },
+      { letter: 'X', response: 'Match' },
+      { letter: 'D', response: 'No match' },
+    ];
+    const tutorialLetter = document.getElementById('tutorial-letter');
+    const tutorialResponse = document.getElementById('tutorial-response');
+    let tutorialTimer = null;
+    tutorialReplay.addEventListener('click', () => {
+      window.clearTimeout(tutorialTimer);
+      tutorialReplay.disabled = true;
+      tutorialReplay.textContent = 'Playing…';
+      let step = 0;
+      const showStep = () => {
+        const example = tutorialSteps[step];
+        tutorialLetter.textContent = example.letter;
+        tutorialResponse.textContent = example.response;
+        step += 1;
+        if (step < tutorialSteps.length) {
+          tutorialTimer = window.setTimeout(showStep, 1100);
+        } else {
+          tutorialTimer = window.setTimeout(() => {
+            tutorialReplay.disabled = false;
+            tutorialReplay.textContent = 'Play again';
+          }, 1100);
+        }
+      };
+      showStep();
+    });
+  }
+
   const choiceForm = document.getElementById('choice-form');
   if (choiceForm) {
     const startedAt = performance.now();
@@ -54,6 +77,7 @@
 
   const config = JSON.parse(taskConfigElement.textContent);
   const startButton = document.getElementById('start-task');
+  const responseButtons = document.getElementById('task-responses');
   const stimulusElement = document.getElementById('stimulus');
   const statusElement = document.getElementById('task-status');
   const progressElement = document.getElementById('task-progress');
@@ -63,6 +87,14 @@
   let taskStartedAt = 0;
   let activeTrial = null;
   let running = false;
+
+  if (matchMedia('(pointer: coarse)').matches) responseButtons.hidden = false;
+
+  const recordResponse = (response) => {
+    if (!running || !activeTrial || activeTrial.response !== null) return;
+    activeTrial.response = response;
+    activeTrial.reaction_time_ms = Math.max(0, performance.now() - activeTrial.stimulusStartedAt);
+  };
 
   const finish = async () => {
     running = false;
@@ -115,6 +147,11 @@
     }, Math.max(0, scheduledTime - performance.now()));
   };
 
+  responseButtons.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-response]');
+    if (button) recordResponse(button.dataset.response);
+  });
+
   document.addEventListener('keydown', (event) => {
     if (!running || !activeTrial || activeTrial.response !== null || event.repeat) return;
     let response = null;
@@ -122,8 +159,7 @@
     if (event.code === 'KeyF') response = 'non_target';
     if (!response) return;
     event.preventDefault();
-    activeTrial.response = response;
-    activeTrial.reaction_time_ms = Math.max(0, performance.now() - activeTrial.stimulusStartedAt);
+    recordResponse(response);
   });
 
   startButton.addEventListener('click', () => {
@@ -132,7 +168,7 @@
     startButton.disabled = true;
     startButton.hidden = true;
     errorElement.hidden = true;
-    messageElement.textContent = 'Space = match. F = no match. Respond once to every letter.';
+    messageElement.textContent = 'Tap Match or No match, or use Space for match and F for no match. Respond once to every letter.';
     taskStartedAt = performance.now();
     showTrial(0);
   });

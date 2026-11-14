@@ -8,7 +8,7 @@ The main design crosses three task rewards (5, 10, and 20 credits), four N-back 
 
 Each condition has an independent staircase keyed by `R{reward}_E{level}_T{duration}`. Its first no-task offer starts at half of R with up to 1 credit of jitter, rounded to an integer. Choosing the task raises the next X for that same condition; choosing no task lowers it. The configured step sizes are 2.5, 1.25, 0.625, and 0.3125 credits, rounded to integer offers with at least a 1-credit move when not at a boundary. New and pending offers are integers bounded between 1 and that condition's R. The participant's `adaptive_state` records current X, next step, previous choice, and offers presented for each condition. Trial-level choices are stored separately; the final staircase offer is not treated as an SV estimate. Completed legacy fractional responses are preserved; unchosen legacy offers are rounded and bounded during the schema upgrade.
 
-The task is a browser-based letter N-back. Space means a match and F means no match. Letters are shown for 500 ms, followed by 2,000 ms blank. Practice is 60 seconds at each enabled level in randomized order. Sequence generation and response scoring are server-validated. The selected outcome task uses the exact level and duration from the original choice.
+The task is a browser-based letter N-back. Participants can tap Match or No match; Space and F remain available as keyboard shortcuts. Letters are shown for 500 ms, followed by 2,000 ms blank. The four measured practice blocks are 60 seconds each, in randomized order. A replayable 0-back example and unlimited free practice are also available; free-practice responses are not recorded. Sequence generation and response scoring are server-validated. The selected outcome task uses the exact level and duration from the original choice.
 
 Varying R permits investigation of whether subjective value scales proportionally with reward or whether reward interacts with duration T and operational effort E. N-back level is an operational measure of demand, not a perfect direct measure of cognitive effort. Subjective effort ratings provide a separate measure.
 
@@ -142,7 +142,7 @@ Researcher downloads are separate files: `participants.csv`, `choices.csv`, `nba
    ```
 
    Do not add `app.run()` to the WSGI file. It imports the Flask object and uses the persistent database under the project `instance/` folder.
-6. Configure a long random `SECRET_KEY`, the absolute `DATABASE_URL`, and `COOKIE_SECURE=1` in the WSGI environment. Keep the same database and secret values for the command-line initialization below. Do not commit credentials or secrets.
+6. Configure a long random, persistent `SECRET_KEY`, the absolute `DATABASE_URL`, and `COOKIE_SECURE=1` in the WSGI environment. Production startup fails if the secret or secure-cookie setting is missing. Keep the same database and secret values for the command-line initialization below. Do not commit credentials or secrets.
 7. Initialize the schema and researcher account explicitly from a Bash console. Use the same database URI and secret as in WSGI. Enter the password at the prompt rather than in the command line:
 
    ```bash

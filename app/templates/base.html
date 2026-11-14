@@ -55,9 +55,6 @@
     </nav>
     {% endif %}
 
-    <div id="device-warning" class="device-warning" hidden role="alert">
-      This study requires a keyboard-equipped desktop or laptop. Please return using a computer to continue.
-    </div>
     <div class="flash-stack" aria-live="polite">
       {% for category, message in get_flashed_messages(with_categories=true) %}
       <p class="flash flash--{{ category }}">{{ message }}</p>

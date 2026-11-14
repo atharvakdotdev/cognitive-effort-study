@@ -5,12 +5,23 @@
   <p class="eyebrow">{{ 'Practice block' if task.run_type == 'practice' else 'Selected outcome' }}</p>
   <h1>{{ heading }}</h1>
   <p class="lede">{{ task_description }}</p>
-  <div class="task-instructions"><kbd>Space</kbd> Match <span class="key-separator">·</span> <kbd>F</kbd> No match</div>
+  <div class="task-instructions"><kbd>Space</kbd> Match <span class="key-separator">·</span> <kbd>F</kbd> No match <span class="touch-hint">· Tap a response on touch screens</span></div>
   <div id="task-runner" class="task-runner" aria-live="polite">
     <div id="task-status" class="task-status">Ready when you are</div>
     <div id="stimulus" class="stimulus" aria-label="Letter stimulus">&nbsp;</div>
     <div id="task-progress" class="task-progress">0 / {{ task.sequence|length }}</div>
     <div id="task-message" class="task-message">A match is a letter that follows the {{ task.task_level }}-back rule.</div>
+    <div id="task-responses" class="task-responses" hidden role="group" aria-label="Task responses">
+      <button class="button button--primary" type="button" data-response="target">Match</button>
+      <button class="button" type="button" data-response="non_target">No match</button>
+    </div>
+    {% if task.run_type in ['practice', 'free_practice'] %}
+    <nav class="free-practice-nav" aria-label="Free practice controls">
+      <span>Free practice:</span>
+      {% for level in range(4) %}<a href="{{ url_for('participant.free_practice', level=level) }}">{{ level }}-back</a>{% endfor %}
+      {% if task.run_type == 'free_practice' %}<a href="{{ url_for('participant.resume') }}">Return to study</a>{% endif %}
+    </nav>
+    {% endif %}
     <button id="start-task" class="button button--primary" type="button">Start task</button>
     <div id="task-error" class="error-text" role="alert" hidden></div>
   </div>
