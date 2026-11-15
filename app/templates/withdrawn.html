@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
 {% block title %}Withdrawn | Cognitive Effort Study{% endblock %}
 {% block content %}
-<section class="content-panel narrow-panel"><p class="eyebrow">Withdrawal recorded</p><h1>Your session responses were removed.</h1><p class="prose">No study responses from this session remain in the research tables. A withdrawal record is retained so this session cannot resume. You can start a new survey session; it will begin again with the study information.</p><a class="button button--primary" href="{{ url_for('participant.welcome') }}">Start a new session</a></section>
+<section class="content-panel narrow-panel"><p class="eyebrow">Withdrawal recorded</p><h1>Your session responses were removed.</h1><p class="prose">No study responses from this session remain in the research tables. A withdrawal record is retained so this session cannot resume. You can start a new survey session; it will begin again with the study information.</p><a class="button button--primary" href="{{ url_for('participant.consent') }}">Start a new session</a></section>
 {% endblock %}

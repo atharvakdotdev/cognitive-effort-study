@@ -238,8 +238,11 @@ class WebWorkflowTests(unittest.TestCase):
         self.assertIn(b"Start a new session", withdrawn.data)
         self.assertEqual(Participant.query.one().status, "withdrawn")
 
+        with self.client.session_transaction() as browser_session:
+            browser_session["consent_submission_token"] = original_token
         consent_page = self.client.get("/consent")
         self.assertEqual(consent_page.status_code, 200)
+        self.assertIn(b"Study information and consent", consent_page.data)
         with self.client.session_transaction() as browser_session:
             new_token = browser_session["consent_submission_token"]
         self.assertNotEqual(new_token, original_token)

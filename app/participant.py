@@ -332,9 +332,15 @@ def consent():
     consent_token = session.get("consent_submission_token")
     if not researcher_debug and consent_token:
         token_hash = _consent_token_hash(consent_token)
-        prior_response = _prior_consent_response(token_hash)
-        if prior_response is not None:
-            return prior_response
+        submission = db.session.get(ConsentSubmission, token_hash)
+        prior_participant = db.session.get(Participant, submission.participant_id) if submission else None
+        if request.method == "GET" and prior_participant and prior_participant.status == "withdrawn":
+            session.pop("consent_submission_token", None)
+            consent_token = None
+        else:
+            prior_response = _prior_consent_response(token_hash)
+            if prior_response is not None:
+                return prior_response
     if request.method == "POST":
         token_hash = None
         if not researcher_debug:
