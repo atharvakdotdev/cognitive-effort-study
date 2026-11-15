@@ -222,6 +222,35 @@ class WebWorkflowTests(unittest.TestCase):
         self.assertEqual(Choice.query.filter_by(participant_id=participant.participant_id).count(), 0)
         self.assertEqual(db.session.get(Participant, participant.participant_id).status, "withdrawn")
 
+    def test_withdrawn_participant_can_start_a_new_session(self):
+        consent_data = {
+            "age_confirmed": "yes",
+            "read_confirmed": "yes",
+            "agree_confirmed": "yes",
+        }
+        self.assertEqual(self.post_consent(consent_data).status_code, 302)
+        original = Participant.query.one()
+        with self.client.session_transaction() as browser_session:
+            original_token = browser_session["consent_submission_token"]
+
+        withdrawn = self.client.post("/withdraw")
+        self.assertEqual(withdrawn.status_code, 200)
+        self.assertIn(b"Start a new session", withdrawn.data)
+        self.assertEqual(Participant.query.one().status, "withdrawn")
+
+        consent_page = self.client.get("/consent")
+        self.assertEqual(consent_page.status_code, 200)
+        with self.client.session_transaction() as browser_session:
+            new_token = browser_session["consent_submission_token"]
+        self.assertNotEqual(new_token, original_token)
+
+        restarted = self.client.post("/consent", data={**consent_data, "consent_submission_token": new_token})
+        self.assertEqual(restarted.status_code, 302)
+        self.assertIn("/instructions", restarted.location)
+        self.assertEqual(Participant.query.count(), 2)
+        self.assertEqual(db.session.get(Participant, original.participant_id).status, "withdrawn")
+        self.assertNotEqual(Participant.query.order_by(Participant.created_at.desc()).first().participant_id, original.participant_id)
+
     def test_participant_cannot_skip_to_choices_and_cannot_repeat_a_trial(self):
         self.assertEqual(self.client.get("/choice").status_code, 302)
         participant = self.make_participant()

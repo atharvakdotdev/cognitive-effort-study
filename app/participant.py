@@ -885,6 +885,7 @@ def withdraw():
     participant.quality_flags = "[]"
     db.session.commit()
     session.pop("participant_id", None)
+    session.pop("consent_submission_token", None)
     return render_template("withdrawn.html")
 
 
