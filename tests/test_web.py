@@ -203,6 +203,24 @@ class WebWorkflowTests(unittest.TestCase):
         self.assertTrue(video.mimetype.startswith("video/"))
         video.close()
 
+    def test_free_practice_shows_rule_for_each_n_back_level(self):
+        participant = self.make_participant(participant_id="P-NBACK-RULES", stage="practice")
+        with self.client.session_transaction() as browser_session:
+            browser_session["participant_id"] = participant.participant_id
+        rule_text = {
+            0: b"Match only when the letter is X.",
+            1: b"same as the one immediately before it.",
+            2: b"same as the one two positions earlier.",
+            3: b"same as the one three positions earlier.",
+        }
+
+        for level, expected_rule in rule_text.items():
+            with self.subTest(level=level):
+                response = self.client.get(f"/practice/free/{level}")
+                self.assertEqual(response.status_code, 200)
+                self.assertIn(expected_rule, response.data)
+                self.assertIn(b"No response counts as No match.", response.data)
+
     def test_active_participant_session_persists_across_refresh(self):
         response = self.post_consent({
             "age_confirmed": "yes", "read_confirmed": "yes", "agree_confirmed": "yes"
