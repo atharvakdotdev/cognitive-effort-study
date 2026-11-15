@@ -174,7 +174,14 @@ def logout():
 @admin_bp.get("/")
 @researcher_required
 def dashboard():
-    participants = Participant.query.order_by(Participant.created_at.desc()).all()
+    status_filter = request.args.get("status", "all")
+    valid_statuses = {"all", "in_progress", "completed", "excluded", "withdrawn"}
+    if status_filter not in valid_statuses:
+        status_filter = "all"
+    participants_query = Participant.query.order_by(Participant.created_at.desc())
+    if status_filter != "all":
+        participants_query = participants_query.filter_by(status=status_filter)
+    participants = participants_query.all()
     real = [participant for participant in participants if not participant.is_test]
     stats = {
         "total": len(real),
@@ -184,7 +191,13 @@ def dashboard():
         "withdrawn": sum(participant.status == "withdrawn" for participant in real),
         "synthetic": sum(participant.is_test for participant in participants),
     }
-    return render_template("admin/dashboard.html", participants=participants, stats=stats, progress_stage="welcome")
+    return render_template(
+        "admin/dashboard.html",
+        participants=participants,
+        stats=stats,
+        status_filter=status_filter,
+        progress_stage="welcome",
+    )
 
 
 @admin_bp.get("/participants/<participant_id>")

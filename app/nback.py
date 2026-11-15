@@ -47,17 +47,19 @@ def validate_responses(
             raise ValueError("Malformed task response")
         actual_response = response.get("response")
         reaction_time = response.get("reaction_time_ms")
-        if actual_response not in (None, "target", "non_target"):
-            raise ValueError("Unrecognised keyboard response")
         if actual_response is None:
             if reaction_time is not None:
-                raise ValueError("A missed response cannot have a reaction time")
-        elif (
-            isinstance(reaction_time, bool)
-            or not isinstance(reaction_time, (int, float))
-            or not 0 <= reaction_time <= design.STIMULUS_DURATION_MS + design.INTER_STIMULUS_INTERVAL_MS
-        ):
-            raise ValueError("Reaction time is outside the trial interval")
+                raise ValueError("A response without a selection cannot have a reaction time")
+            actual_response = "non_target"
+        elif actual_response not in ("target", "non_target"):
+            raise ValueError("Unrecognised keyboard response")
+        else:
+            if (
+                isinstance(reaction_time, bool)
+                or not isinstance(reaction_time, (int, float))
+                or not 0 <= reaction_time <= design.STIMULUS_DURATION_MS + design.INTER_STIMULUS_INTERVAL_MS
+            ):
+                raise ValueError("Reaction time is outside the trial interval")
 
         expected_response = "target" if target else "non_target"
         validated.append(

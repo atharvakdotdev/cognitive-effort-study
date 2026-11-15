@@ -29,6 +29,25 @@ class NBackTests(unittest.TestCase):
         self.assertEqual([item["accuracy"] for item in results], [True, False, True])
         self.assertTrue(results[2]["correct_response"])
 
+    def test_no_response_is_scored_as_no_match(self):
+        results = validate_responses(
+            1,
+            ["B", "C", "C"],
+            [
+                {"response": None, "reaction_time_ms": None},
+                {"response": None, "reaction_time_ms": None},
+                {"response": None, "reaction_time_ms": None},
+            ],
+        )
+
+        self.assertEqual([item["actual_response"] for item in results], ["non_target"] * 3)
+        self.assertEqual([item["accuracy"] for item in results], [True, True, False])
+        self.assertIsNone(results[0]["reaction_time_ms"])
+
+    def test_no_response_with_reaction_time_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "cannot have a reaction time"):
+            validate_responses(0, ["B"], [{"response": None, "reaction_time_ms": 100}])
+
     def test_invalid_length_response_and_reaction_time_are_rejected(self):
         with self.assertRaises(ValueError):
             validate_responses(0, ["B"], [])

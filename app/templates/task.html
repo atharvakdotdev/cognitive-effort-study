@@ -10,7 +10,7 @@
     <div id="task-status" class="task-status">Ready when you are</div>
     <div id="stimulus" class="stimulus" aria-label="Letter stimulus">&nbsp;</div>
     <div id="task-progress" class="task-progress">0 / {{ task.sequence|length }}</div>
-    <div id="task-message" class="task-message">A match is a letter that follows the {{ task.task_level }}-back rule.</div>
+    <div id="task-message" class="task-message">A match is a letter that follows the {{ task.task_level }}-back rule. No response counts as No match.</div>
     <div id="task-responses" class="task-responses" hidden role="group" aria-label="Task responses">
       <button class="button button--primary" type="button" data-response="target">Match</button>
       <button class="button" type="button" data-response="non_target">No match</button>

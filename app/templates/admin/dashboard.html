@@ -10,9 +10,20 @@
   <div class="export-links">
     <a href="{{ url_for('admin.export_participants') }}">Participants CSV</a><a href="{{ url_for('admin.export_choices') }}">Choices CSV</a><a href="{{ url_for('admin.export_nback_responses') }}">N-back responses CSV</a><a href="{{ url_for('admin.export_effort_ratings') }}">Effort ratings CSV</a><a href="{{ url_for('admin.export_implemented_outcomes') }}">Implemented outcomes CSV</a>
   </div>
-  <div class="section-heading"><h2>All sessions</h2><p>Synthetic records are labelled and kept separate from research exports.</p></div>
+  <div class="section-heading"><h2>Sessions</h2><p>Synthetic records are labelled and kept separate from research exports.</p></div>
+  <form class="session-filter" method="get" action="{{ url_for('admin.dashboard') }}">
+    <label for="session-status">Status</label>
+    <select id="session-status" name="status">
+      <option value="all" {{ 'selected' if status_filter == 'all' else '' }}>All statuses</option>
+      <option value="in_progress" {{ 'selected' if status_filter == 'in_progress' else '' }}>In progress</option>
+      <option value="completed" {{ 'selected' if status_filter == 'completed' else '' }}>Completed</option>
+      <option value="excluded" {{ 'selected' if status_filter == 'excluded' else '' }}>Excluded</option>
+      <option value="withdrawn" {{ 'selected' if status_filter == 'withdrawn' else '' }}>Withdrawn</option>
+    </select>
+    <button class="button" type="submit">Apply filter</button>
+  </form>
   <div class="table-wrap"><table><thead><tr><th>Participant ID</th><th>Created</th><th>Status</th><th>Stage</th><th>Quality flags</th></tr></thead><tbody>
-    {% for participant in participants %}<tr class="{{ 'synthetic-row' if participant.is_test else '' }}"><td><a href="{{ url_for('admin.participant_detail', participant_id=participant.participant_id) }}">{{ participant.participant_id }}</a>{% if participant.is_test %}<span class="tag tag--synthetic">SYNTHETIC · TEST</span>{% endif %}</td><td>{{ participant.created_at.strftime('%Y-%m-%d %H:%M') if participant.created_at else '' }}</td><td>{{ participant.status }}</td><td>{{ participant.current_stage }}</td><td>{{ participant.quality_flags if participant.quality_flags != '[]' else '—' }}</td></tr>{% else %}<tr><td colspan="5" class="empty-state">No sessions yet.</td></tr>{% endfor %}
+    {% for participant in participants %}<tr class="{{ 'synthetic-row' if participant.is_test else '' }}"><td><a href="{{ url_for('admin.participant_detail', participant_id=participant.participant_id) }}">{{ participant.participant_id }}</a>{% if participant.is_test %}<span class="tag tag--synthetic">SYNTHETIC · TEST</span>{% endif %}</td><td>{{ participant.created_at.strftime('%Y-%m-%d %H:%M') if participant.created_at else '' }}</td><td>{{ participant.status }}</td><td>{{ participant.current_stage }}</td><td>{{ participant.quality_flags if participant.quality_flags != '[]' else '—' }}</td></tr>{% else %}<tr><td colspan="5" class="empty-state">{% if status_filter == 'all' %}No sessions yet.{% else %}No sessions with this status.{% endif %}</td></tr>{% endfor %}
   </tbody></table></div>
 </section>
 {% endblock %}

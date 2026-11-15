@@ -184,10 +184,24 @@ class WebWorkflowTests(unittest.TestCase):
             "Data will be deleted 30 days after your final submission",
             "Usernames are excluded from research exports",
             "The memory tasks may cause some mental fatigue or frustration",
-            "atharvak.dixit@gmail.com",
-            "No ethics approval is claimed",
+            "contact.atharvak.dev@gmail.com",
         ):
             self.assertIn(disclosure.encode(), response.data)
+
+    def test_instructions_embed_local_n_back_video(self):
+        participant = self.make_participant(participant_id="P-VIDEO", stage="instructions")
+        with self.client.session_transaction() as browser_session:
+            browser_session["participant_id"] = participant.participant_id
+
+        response = self.client.get("/instructions")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"/static/nback.mp4", response.data)
+        self.assertIn(b"<video controls", response.data)
+        video = self.client.get("/static/nback.mp4")
+        self.assertEqual(video.status_code, 200)
+        self.assertTrue(video.mimetype.startswith("video/"))
+        video.close()
 
     def test_active_participant_session_persists_across_refresh(self):
         response = self.post_consent({
@@ -454,6 +468,35 @@ class WebWorkflowTests(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("/researcher/login", response.location)
         self.assertEqual(self.client.get("/researcher/login").status_code, 200)
+
+    def test_researcher_dashboard_filters_sessions_by_status(self):
+        researcher = Researcher(username="status-filter")
+        researcher.set_password("not-a-production-password")
+        db.session.add(researcher)
+        for participant_id, status in (
+            ("P-STATUS-PROGRESS", "in_progress"),
+            ("P-STATUS-COMPLETE", "completed"),
+            ("P-STATUS-EXCLUDED", "excluded"),
+            ("P-STATUS-WITHDRAWN", "withdrawn"),
+        ):
+            participant = self.make_participant(participant_id=participant_id, stage="instructions")
+            participant.status = status
+        db.session.commit()
+        self.client.post("/researcher/login", data={
+            "username": "status-filter", "password": "not-a-production-password"
+        })
+
+        response = self.client.get("/researcher/?status=completed")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"P-STATUS-COMPLETE", response.data)
+        self.assertNotIn(b"P-STATUS-PROGRESS", response.data)
+        self.assertNotIn(b"P-STATUS-EXCLUDED", response.data)
+        self.assertNotIn(b"P-STATUS-WITHDRAWN", response.data)
+
+        invalid_filter = self.client.get("/researcher/?status=unknown")
+        self.assertEqual(invalid_filter.status_code, 200)
+        self.assertIn(b"P-STATUS-PROGRESS", invalid_filter.data)
 
     def test_authentication_routes_do_not_apply_rate_limits(self):
         for path in ("/account/login", "/researcher/login"):

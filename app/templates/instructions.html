@@ -12,7 +12,10 @@
   <section class="nback-video" aria-labelledby="nback-video-title">
     <h2 id="nback-video-title">How the N-back task works</h2>
     <div class="nback-video-frame">
-      <iframe src="https://www.youtube-nocookie.com/embed/hm7eiW2OBsY" title="How the N-back task works" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+      <video controls preload="metadata" playsinline aria-label="How the N-back task works">
+        <source src="{{ url_for('static', filename='nback.mp4') }}" type="video/mp4">
+        Your browser does not support HTML video.
+      </video>
     </div>
   </section>
   <section class="tutorial-example" aria-labelledby="tutorial-title">

@@ -168,7 +168,7 @@
     startButton.disabled = true;
     startButton.hidden = true;
     errorElement.hidden = true;
-    messageElement.textContent = 'Tap Match or No match, or use Space for match and F for no match. Respond once to every letter.';
+    messageElement.textContent = 'Tap Match or No match, or use Space for match and F for no match. No response counts as No match.';
     taskStartedAt = performance.now();
     showTrial(0);
   });
