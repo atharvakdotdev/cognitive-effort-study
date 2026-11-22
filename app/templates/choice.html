@@ -2,7 +2,13 @@
 {% block title %}Choice {{ choice.trial_number }} | Cognitive Effort Study{% endblock %}
 {% block content %}
 <section class="choice-panel">
-  <div class="choice-heading"><div><p class="eyebrow">Choice {{ choice.trial_number }} of {{ total }}</p><h1>Which option do you prefer?</h1></div><p class="quiet-note">One choice will determine your study outcome.</p></div>
+  <div class="choice-heading">
+    <div class="choice-progress" role="progressbar" aria-label="Study progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ ((choice.trial_number / total) * 100)|round|int }}">
+      <span style="width: {{ ((choice.trial_number / total) * 100)|round(1) }}%"></span>
+    </div>
+    <h1>Which option do you prefer?</h1>
+    <p class="quiet-note">One choice will determine your study outcome.</p>
+  </div>
   <form id="choice-form" class="choice-options" method="post" action="{{ url_for('participant.submit_choice', trial_number=choice.trial_number) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_value }}">
     <input id="chosen-option" type="hidden" name="chosen_option" value="">

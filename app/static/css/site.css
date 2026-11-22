@@ -127,7 +127,9 @@ kbd { display: inline-block; padding: 3px 8px; border: 1px solid #59615b; border
 .free-practice-nav { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px; margin: 0 0 16px; color: var(--muted); font-size: 14px; }
 .free-practice-nav a { color: var(--accent); }
 .error-text { margin-top: 16px; color: var(--error); }
-.choice-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 28px; }
+.choice-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 20px; margin-bottom: 28px; }
+.choice-progress { grid-column: 1 / -1; width: 100%; height: 8px; margin: 0 0 4px; overflow: hidden; border-radius: 999px; background: var(--surface-raised); }
+.choice-progress span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width 180ms ease-out; }
 .choice-heading h1 { font-size: 40px; }
 .choice-heading .quiet-note { margin: 0 0 6px; }
 .choice-options { display: flex; align-items: stretch; gap: 16px; }

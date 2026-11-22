@@ -314,6 +314,8 @@ class WebWorkflowTests(unittest.TestCase):
         choice_page = self.client.get("/choice")
         self.assertEqual(choice_page.status_code, 200)
         self.assertIn(b'id="chosen-option" type="hidden" name="chosen_option"', choice_page.data)
+        self.assertIn(b'role="progressbar" aria-label="Study progress"', choice_page.data)
+        self.assertNotIn(b"Choice 1 of 246", choice_page.data)
         first = Choice.query.filter_by(participant_id=participant.participant_id).order_by(Choice.trial_number).first()
         response = self.client.post(f"/choice/{first.trial_number}", data={
             "chosen_option": "no_task", "response_time_ms": "1200"
