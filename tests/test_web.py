@@ -170,6 +170,25 @@ class WebWorkflowTests(unittest.TestCase):
         with self.client.session_transaction() as browser_session:
             self.assertNotIn("participant_id", browser_session)
 
+    def test_welcome_embeds_local_study_explainer_video(self):
+        response = self.client.get("/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"/static/HowTo.mp4", response.data)
+        self.assertIn(b"See how the study works", response.data)
+        self.assertIn(b"Explore how people make decisions when rewards, time and mental effort compete.", response.data)
+        self.assertIn(b"Mobile + desktop", response.data)
+        self.assertIn(b"How participation works", response.data)
+        self.assertIn(b"About the research", response.data)
+        self.assertIn(b'id="open-study-video"', response.data)
+        self.assertIn(b'id="study-video-dialog"', response.data)
+        self.assertIn(b"<video controls", response.data)
+        self.assertNotIn(b"autoplay", response.data.lower())
+        video = self.client.get("/static/HowTo.mp4")
+        self.assertEqual(video.status_code, 200)
+        self.assertTrue(video.mimetype.startswith("video/"))
+        video.close()
+
     def test_consent_discloses_rewards_voluntariness_privacy_retention_and_contact(self):
         response = self.client.get("/consent")
         self.assertEqual(response.status_code, 200)

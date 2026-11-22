@@ -1,17 +1,69 @@
 {% extends 'base.html' %}
 {% block title %}Welcome | Cognitive Effort Study{% endblock %}
 {% block content %}
-<section class="intro-panel">
-  <p class="eyebrow">Online behavioural research</p>
-  <h1>How do time and mental effort shape a choice?</h1>
-  <p class="lede">Take part in a study about choosing between a smaller reward now and a larger reward after a cognitive task.</p>
-  <div class="study-facts">
-    <div><strong>246</strong><span>Choice trials</span></div>
-    <div><strong>18+</strong><span>Adults only</span></div>
-    <div><strong>Mobile-ready</strong><span>Touch controls available</span></div>
+<section class="welcome-hero">
+  <div class="welcome-copy">
+    <p class="eyebrow">Online behavioural research</p>
+    <h1>How do time and mental effort shape a choice?</h1>
+    <p class="lede">Explore how people make decisions when rewards, time and mental effort compete. Take part in an interactive study involving real choices and cognitive tasks.</p>
+    <div class="study-facts">
+      <div><strong>246</strong><span>Choice trials</span></div>
+      <div><strong>18+</strong><span>Adults only</span></div>
+      <div><strong>Mobile + desktop</strong><span>Supported</span></div>
+    </div>
+    <a class="button button--primary" data-proceed href="{{ url_for('participant.consent') }}">Read study information <span aria-hidden="true">→</span></a>
+    <p class="quiet-note account-entry">Already have a user account? <a href="{{ url_for('accounts.login') }}">Sign in to resume</a> · <a href="{{ url_for('accounts.register') }}">Create an account</a></p>
+    <p class="quiet-note">Participation is voluntary. You can withdraw before submitting your completed session.</p>
   </div>
-  <a class="button button--primary" data-proceed href="{{ url_for('participant.consent') }}">Read study information <span aria-hidden="true">→</span></a>
-  <p class="quiet-note account-entry">Already have a user account? <a href="{{ url_for('accounts.login') }}">Sign in to resume</a> · <a href="{{ url_for('accounts.register') }}">Create an account</a></p>
-  <p class="quiet-note">Participation is voluntary. You can withdraw before submitting your completed session.</p>
+  <section class="welcome-video" aria-labelledby="study-overview-video-title">
+    <h2 id="study-overview-video-title">See how the study works</h2>
+    <button class="study-video-preview" id="open-study-video" type="button" aria-haspopup="dialog" aria-controls="study-video-dialog" aria-label="Open the study walkthrough video">
+      <video class="study-video-preview__video" preload="metadata" muted playsinline aria-hidden="true" tabindex="-1">
+        <source src="{{ url_for('static', filename='HowTo.mp4') }}" type="video/mp4">
+        Your browser does not support HTML video.
+      </video>
+      <span class="study-video-play-icon" aria-hidden="true"></span>
+    </button>
+  </section>
+</section>
+
+<dialog class="study-video-dialog" id="study-video-dialog" aria-labelledby="study-video-dialog-title">
+  <div class="study-video-dialog__header">
+    <h2 id="study-video-dialog-title">Study walkthrough</h2>
+    <button class="button" id="close-study-video" type="button">Close video</button>
+  </div>
+  <video controls preload="none" playsinline aria-label="Study walkthrough video">
+    <source src="{{ url_for('static', filename='HowTo.mp4') }}" type="video/mp4">
+    Your browser does not support HTML video.
+  </video>
+</dialog>
+
+<script>
+  (() => {
+    const dialog = document.getElementById('study-video-dialog');
+    const openButton = document.getElementById('open-study-video');
+    const closeButton = document.getElementById('close-study-video');
+    if (!(dialog instanceof HTMLDialogElement) || !openButton || !closeButton) return;
+
+    openButton.addEventListener('click', () => dialog.showModal());
+    closeButton.addEventListener('click', () => dialog.close());
+    dialog.addEventListener('close', () => dialog.querySelector('video')?.pause());
+  })();
+</script>
+
+<section class="welcome-followup" aria-label="Study details">
+  <section aria-labelledby="participation-title">
+    <h2 id="participation-title">How participation works</h2>
+    <ol class="participation-steps">
+      <li>Read the study information.</li>
+      <li>Create an account if you would like to resume later, then review the consent information.</li>
+      <li>Complete cognitive tasks and make choices.</li>
+      <li>Submit your completed session.</li>
+    </ol>
+  </section>
+  <section aria-labelledby="research-title">
+    <h2 id="research-title">About the research</h2>
+    <p class="prose">The study examines how task reward, cognitive task demand, and duration relate to people's choices. Participation is voluntary; you can choose not to take part or withdraw before submitting your study.</p>
+  </section>
 </section>
 {% endblock %}

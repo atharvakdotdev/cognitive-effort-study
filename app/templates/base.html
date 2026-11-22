@@ -60,7 +60,7 @@
       <p class="flash flash--{{ category }}">{{ message }}</p>
       {% endfor %}
     </div>
-    <main id="main-content" class="main-content">
+    <main id="main-content" class="main-content {{ 'main-content--welcome' if progress_stage == 'welcome' else '' }}">
       {% block content %}{% endblock %}
     </main>
     <footer class="site-footer">
